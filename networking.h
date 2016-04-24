@@ -5,9 +5,10 @@
 	//- float : positionY
 	//- float : positionZ
 	//- string : trackingState(Tracked, NotTracked or Inferred)
-#include <winsock.h>
 #include "ofApp.h"
 #include "ofxOsc.h"
+#include "ofxNetwork.h"
+
 
 	// phase II go to something like IoTivity or AllJoyn, let the dust settle.  
 
@@ -52,4 +53,12 @@ namespace Software2552 {
 		MessageMap q;
 	};
 
+	class TCPServer {
+	public:
+	private:
+		ofxTCPServer TCP; // keep private to avoid massive header file war with osc stuff
+
+		vector <string> storeText;
+		uint64_t lastSent;
+	};
 }
