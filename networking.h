@@ -29,7 +29,7 @@ namespace Software2552 {
 		void setup(const string &hostname = "192.168.1.255", int port = 2552);
 
 		// add a message to be sent
-		void send(ofxJSON &data, const string&address);
+		void update(ofxJSON &data, const string&address);
 
 	private:
 		void threadedFunction();
@@ -55,8 +55,10 @@ namespace Software2552 {
 
 	class TCPServer {
 	public:
+		void setup();
+		void update(ofxJSON &data);
 	private:
-		ofxTCPServer TCP; // keep private to avoid massive header file war with osc stuff
+		ofxTCPServer TCP; 
 
 		vector <string> storeText;
 		uint64_t lastSent;

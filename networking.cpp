@@ -59,7 +59,7 @@ namespace Software2552 {
 		return false;
 	}
 	// add a message to be sent
-	void WriteOsc::send(ofxJSON &data, const string&address) {
+	void WriteOsc::update(ofxJSON &data, const string&address) {
 		if (data.size() > 0) {
 			shared_ptr<ofxOscMessage> p = OSCMessage::fromJson(data, address);
 			if (p) {
@@ -108,5 +108,24 @@ namespace Software2552 {
 		return j;
 	}
 
-
+	void TCPServer::setup() {
+		ofLogError("ofxTCPServer") << "setup(): couldn't create server";
+		TCP.setup(11999);
+		// optionally set the delimiter to something else.  The delimiter in the client and the server have to be the same, default being [/TCP]
+		TCP.setMessageDelimiter("\n");
+		lastSent = 0;
+	}
+	void TCPServer::update(ofxJSON &data) {
+		// for each client lets send them a message letting them know what port they are connected on
+		// we throttle the message sending frequency to once every 100ms
+		uint64_t now = ofGetElapsedTimeMillis();
+		if (now - lastSent >= 100) {
+			for (int i = 0; i < TCP.getLastID(); i++) {
+				if (TCP.isClientConnected(i)) {
+					TCP.send(i, "hello client - you are connected on port - " + ofToString(TCP.getClientPort(i)));
+				}
+			}
+			lastSent = now;
+		}
+	}
 }
