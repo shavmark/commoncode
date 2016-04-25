@@ -69,6 +69,23 @@ void TCPReader::IRFromTCP(const string& buffer, ofImage& image) {
 	image.update();
 }
 void TCPReader::bodyFromTCP(const string& buffer) {
+	// get the json from the buffer
+	Json::Value data;
+
+	int x, y;
+
+	//data["highConfidence"]
+
+	if (data["state"] == "open") {
+		ofDrawCircle(x, y, 30); // make these drawing types and add them in, could make them 3d for example
+	}
+	else if (data["state"] == "closed") {
+		ofDrawCircle(x, y, 5);
+	}
+	else if (data["state"] == "lasso") {
+		ofDrawEllipse(x, y, 15, 10);
+	}
+
 }
 
 // call on every update (this is done on the client side, not the server side)

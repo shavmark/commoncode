@@ -1,4 +1,5 @@
 #include "ofApp.h"
+#include "control.h"
 
 namespace Software2552 {
 #define MAXSEND (512*30)
@@ -10,8 +11,7 @@ namespace Software2552 {
 			if (p) {
 				string output;
 				string input = m->getArgAsString(0);
-				uncompress(input.c_str(), input.size(), output);
-				p->parse(output);
+				p->parse(uncompress(input.c_str(), input.size(), output));
 			}
 			return p;
 		}
@@ -27,10 +27,7 @@ namespace Software2552 {
 			// even compress the small ones so more messages can use UDP
 			string output;
 			string input = data.getRawString(false);
-			int size1 = input.size();
-			compress(input.c_str(), input.size(), output);
-			int size2 = output.size();
-			p->addStringArg(output); // all data is in json
+			p->addStringArg(compress(input.c_str(), input.size(), output)); // all data is in json
 		}
 		return p;
 	}
