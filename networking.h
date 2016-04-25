@@ -53,14 +53,31 @@ namespace Software2552 {
 		MessageMap q;
 	};
 
-	class TCPServer {
+	class TCPServer : public ofThread {
 	public:
 		void setup();
-		void update(ofxJSON &data);
+#define BODYINDEX 'x'
+#define IR 'i'
+#define BODY 'b'
+		// type B(BodyIndex), I(IR), X(BodyIndex)
+		void update(const char * rawBytes, const int numBytes, char type, int clientID = -1);
 	private:
-		ofxTCPServer TCP; 
-
-		vector <string> storeText;
-		uint64_t lastSent;
+		struct Message {
+			char type;
+			const char *bytes;
+			int numberOfBytes;
+			int clientID;
+		};
+		void threadedFunction();
+		void sendbinary(Message *m);
+		ofxTCPServer server;
+		deque<Message*> q;
+	};
+	class TCPClient {
+	public:
+		void setup();
+		char update(string& buffer);
+	private:
+		ofxTCPClient tcpClient;
 	};
 }

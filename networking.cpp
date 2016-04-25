@@ -1,6 +1,7 @@
 #include "ofApp.h"
 
 namespace Software2552 {
+#define MAXSEND (512*30)
 
 	shared_ptr<ofxJSON> OSCMessage::toJson(shared_ptr<ofxOscMessage> m) {
 		if (m) {
@@ -109,23 +110,90 @@ namespace Software2552 {
 	}
 
 	void TCPServer::setup() {
-		ofLogError("ofxTCPServer") << "setup(): couldn't create server";
-		TCP.setup(11999);
+		
+		server.setup(11999);
 		// optionally set the delimiter to something else.  The delimiter in the client and the server have to be the same, default being [/TCP]
-		TCP.setMessageDelimiter("\n");
-		lastSent = 0;
+		server.setMessageDelimiter("\n");
 	}
-	void TCPServer::update(ofxJSON &data) {
-		// for each client lets send them a message letting them know what port they are connected on
-		// we throttle the message sending frequency to once every 100ms
-		uint64_t now = ofGetElapsedTimeMillis();
-		if (now - lastSent >= 100) {
-			for (int i = 0; i < TCP.getLastID(); i++) {
-				if (TCP.isClientConnected(i)) {
-					TCP.send(i, "hello client - you are connected on port - " + ofToString(TCP.getClientPort(i)));
+	// input data is  deleted by this object at the right time (at least that is the plan)
+	void TCPServer::update(const char * bytes, const int numBytes, char type, int clientID) {
+		Message* m = new Message;
+		if (m) {
+			m->type = type;
+			m->bytes = bytes;
+			m->numberOfBytes = numBytes;
+			m->clientID = clientID;
+			lock();
+			q.push_front(m); //bugbub do we want to add a priority? front & back? not sure
+			unlock();
+		}
+	}
+
+	// control data deletion (why we have our own thread) to avoid data copy since this code is in a Kinect crital path 
+	void TCPServer::threadedFunction() {
+		while (1) {
+			if (q.size() > 0) {
+				lock();
+				Message* m = q.front();
+				q.pop_front();
+				unlock();
+				if (m) {
+					sendbinary(m);
+					if (m->bytes) {
+						delete m->bytes;
+					}
+					delete m;
 				}
 			}
-			lastSent = now;
+			ofSleepMillis(10);
 		}
+	}
+	void TCPServer::sendbinary(Message *m) {
+		if (m) {
+			if (m->numberOfBytes > MAXSEND) {
+				ofLogError("TCPServer::sendbinary") << "block too large " << ofToString(m->bytes);
+				return;
+			}
+			if (m->clientID > 0) {
+				server.sendRawBytes(m->clientID, m->bytes, m->numberOfBytes);
+			}
+			else {
+				server.sendRawBytesToAll(m->bytes, m->numberOfBytes);
+			}
+		}
+		// we throttle the message sending frequency to once every 100ms
+		ofSleepMillis(90);
+	}
+	char TCPClient::update(string& buffer) {
+		char type = 0;
+		if (tcpClient.isConnected()) {
+			//return or turn into json/ uncompress etc
+			char buf[MAXSEND]; // we control the send
+			int messageSize;
+			std::size_t buffersize = 0;
+			int size = 0;
+			string readdata;
+			readdata.resize(MAXSEND); // try to save on string reallocs
+			// never send more than 20k, but watch for over flow attacks
+			while ((messageSize = tcpClient.receiveRawBytes(buf, MAXSEND)) > 1) {
+				size += messageSize;
+				readdata.append(buf, messageSize);
+			}
+			
+			if (snappy::Uncompress(readdata.c_str(), readdata.size(), &buffer)) {
+				type = buffer[buffer.size() - 1]; // type was tacked on to the end
+				buffer.resize(size - 1);//bugbug does this remove it?
+			}
+		}
+		return type;
+	}
+	void TCPClient::setup() {
+
+		// connect to the server - if this fails or disconnects
+		// we'll check every few seconds to see if the server exists
+		tcpClient.setup("127.0.0.1", 11999);
+
+		// optionally set the delimiter to something else.  The delimiter in the client and the server have to be the same
+		tcpClient.setMessageDelimiter("\n");
 	}
 }
