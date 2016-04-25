@@ -7,13 +7,15 @@ namespace Software2552 {
 
 // input buffer returned as reference
 string& compress(const char*buffer, size_t len, string&output) {
-	snappy::Compress((const char*)buffer, len, &output);
+	size_t size = snappy::Compress((const char*)buffer, len, &output);
 	return output;
 }
 
 // input buffer returned as reference
 string& uncompress(const char*buffer, size_t len, string&output) {
-	snappy::Uncompress(buffer, len, &output);
+	if (!snappy::Uncompress(buffer, len, &output)) {
+		ofLogError("uncompress") << "fails";
+	}
 	return output;
 }
 void Router::setup() {
@@ -22,16 +24,23 @@ void Router::setup() {
 }
 void Router::update() { 
 }
-void Router::send(string &s, char type, int clientID) {
-	if (s.size() > 0) {
-		s += type; // append post compression so other side can read as needed
-		server.update(s.c_str(), s.size(), clientID);
+void Router::send(const char * bytes, const size_t numBytes, char type, int clientID) {
+	if (numBytes > 0) {
+		server.update(bytes, numBytes, type, clientID);
 	}
 }
 
 void TCPReader::setup() {
 	client.setup();
+	startThread();
 }
+void TCPReader::threadedFunction() {
+	while (1) {
+		update();
+		ofSleepMillis(0);
+	}
+}
+
 void TCPReader::update() {
 	string buffer;
 	ofImage image;//bugbug convert to a an item for our drawing queue
@@ -40,15 +49,15 @@ void TCPReader::update() {
 	case 0:
 		break;
 	case IR:
-		IRFromTCP(buffer, image);
+		//IRFromTCP(buffer, image);
 		break;
 	case JSON: // raw jason
 		break;
 	case BODY:
-		bodyFromTCP(buffer);
+		//bodyFromTCP(buffer);
 		break;
 	case BODYINDEX:
-		bodyIndexFromTCP(buffer, image);
+		//bodyIndexFromTCP(buffer, image);
 		break;
 	default:
 		break;
