@@ -179,10 +179,10 @@ namespace Software2552 {
 				size += messageSize;
 				readdata.append(buf, messageSize);
 			}
-			
-			if (snappy::Uncompress(readdata.c_str(), readdata.size(), &buffer)) {
-				type = buffer[buffer.size() - 1]; // type was tacked on to the end
-				buffer.resize(size - 1);//bugbug does this remove it?
+			if (readdata.size() > 0) {
+				type = readdata[readdata.size() - 1]; // type was tacked on to the end after compression
+				readdata.resize(size - 1);//bugbug does this remove it?
+				snappy::Uncompress(readdata.c_str(), readdata.size(), &buffer);
 			}
 		}
 		return type;

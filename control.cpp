@@ -27,7 +27,7 @@ void TCPReader::setup() {
 }
 void TCPReader::update() {
 	string buffer;
-	ofImage image;//bugbug conver to a an item for our drawing queue
+	ofImage image;//bugbug convert to a an item for our drawing queue
 
 	switch (client.update(buffer)) {
 	case 0:
