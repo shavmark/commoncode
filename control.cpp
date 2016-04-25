@@ -1,6 +1,7 @@
 #include "ofApp.h"
 #include "control.h"
 #include "snappy.h"
+#include "inc\Kinect.h" // needed for enums
 
 namespace Software2552 {
 
@@ -75,6 +76,8 @@ void TCPReader::bodyFromTCP(const string& buffer) {
 	int x, y;
 
 	//data["highConfidence"]
+	if (data["jointype"] == JointType::JointType_HandRight) {
+	}
 
 	if (data["state"] == "open") {
 		ofDrawCircle(x, y, 30); // make these drawing types and add them in, could make them 3d for example
