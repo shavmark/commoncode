@@ -8,7 +8,10 @@ namespace Software2552 {
 			// bugbug data comes from one of http/s, string or local file but for now just a string
 			shared_ptr<ofxJSON> p = std::make_shared<ofxJSON>();
 			if (p) {
-				p->parse(m->getArgAsString(0));
+				string output;
+				string input = m->getArgAsString(0);
+				uncompress(input.c_str(), input.size(), output);
+				p->parse(output);
 			}
 			return p;
 		}
@@ -21,7 +24,13 @@ namespace Software2552 {
 									//bugbug if these are used find a way to parameterize
 									//bugbug put all these items in json? or instead use them
 									// to ignore messages, delete old ones?
-			p->addStringArg(data.getRawString(false)); // all data is in json
+			// even compress the small ones so more messages can use UDP
+			string output;
+			string input = data.getRawString(false);
+			int size1 = input.size();
+			compress(input.c_str(), input.size(), output);
+			int size2 = output.size();
+			p->addStringArg(output); // all data is in json
 		}
 		return p;
 	}
@@ -182,7 +191,7 @@ namespace Software2552 {
 			if (readdata.size() > 0) {
 				type = readdata[readdata.size() - 1]; // type was tacked on to the end after compression
 				readdata.resize(size - 1);//bugbug does this remove it?
-				snappy::Uncompress(readdata.c_str(), readdata.size(), &buffer);
+				uncompress(readdata.c_str(), readdata.size(), buffer);
 			}
 		}
 		return type;

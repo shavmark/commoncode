@@ -59,6 +59,7 @@ namespace Software2552 {
 #define BODYINDEX 'x'
 #define IR 'i'
 #define BODY 'b'
+#define JSON 'j'
 		// type B(BodyIndex), I(IR), X(BodyIndex)
 		void update(const char * rawBytes, const int numBytes, char type, int clientID = -1);
 	private:

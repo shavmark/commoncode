@@ -1,24 +1,30 @@
 #include "ofApp.h"
 #include "control.h"
+#include "snappy.h"
 
 namespace Software2552 {
 
+// input buffer returned as reference
+string& compress(const char*buffer, size_t len, string&output) {
+	snappy::Compress((const char*)buffer, len, &output);
+	return output;
+}
+
+// input buffer returned as reference
+string& uncompress(const char*buffer, size_t len, string&output) {
+	snappy::Uncompress(buffer, len, &output);
+	return output;
+}
 void Router::setup() {
 	server.setup();
 	comms.setup();
 }
 void Router::update() { 
 }
-void Router::sendBodyIndex(string *s, int clientID) {
-	if (s) {
-		s += BODYINDEX; // s is already compressed does this work?
-		server.update(s->c_str(), s->size(), clientID);
-	}
-}
-void Router::sendIR(string *s, int clientID) {
-	if (s) {
-		s += IR; // s is already compressed does this work?
-		server.update(s->c_str(), s->size(), clientID);
+void Router::send(string &s, char type, int clientID) {
+	if (s.size() > 0) {
+		s += type; // append post compression so other side can read as needed
+		server.update(s.c_str(), s.size(), clientID);
 	}
 }
 
@@ -35,7 +41,10 @@ void TCPReader::update() {
 	case IR:
 		IRFromTCP(buffer, image);
 		break;
+	case JSON: // raw jason
+		break;
 	case BODY:
+		bodyFromTCP(buffer);
 		break;
 	case BODYINDEX:
 		bodyIndexFromTCP(buffer, image);
@@ -59,6 +68,9 @@ void TCPReader::IRFromTCP(const string& buffer, ofImage& image) {
 	}
 	image.update();
 }
+void TCPReader::bodyFromTCP(const string& buffer) {
+}
+
 // call on every update (this is done on the client side, not the server side)
 void TCPReader::bodyIndexFromTCP(const string& buffer, ofImage& image) {
 		if (buffer.size() == 0) {
