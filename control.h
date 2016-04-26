@@ -8,10 +8,10 @@ namespace Software2552 {
 	class TCPReader : public ofThread {
 	public:
 		void setup();
-		void update();
 		void threadedFunction();
 
 	private:
+		void update();
 		void bodyIndexFromTCP(const string& buffer, ofImage& image);
 		void IRFromTCP(const string& buffer, ofImage& image);
 		void bodyFromTCP(const string& buffer);
@@ -20,7 +20,6 @@ namespace Software2552 {
 	class Router{
 	public:
 		void setup();
-		void update();
 		WriteOsc comms;
 		void send(const char * bytes, const size_t numBytes, char type, int clientID=-1);
 	private:

@@ -48,9 +48,9 @@ namespace Software2552 {
 				unlock();
 				if (m) {
 					sender.sendMessage(*m, false);
+					yield();
 				}
 			}
-			ofSleepMillis(10);
 		}
 	}
 	// return true to ignore messages that have been added recently
@@ -97,8 +97,8 @@ namespace Software2552 {
 					q[p->getAddress()].push_front(p); // will create a new queue if needed
 					unlock();
 				}
+				yield();
 			}
-			ofSleepMillis(10);
 		}
 	}
 	shared_ptr<ofxJSON> ReadOsc::get(const string&address) {
@@ -117,31 +117,37 @@ namespace Software2552 {
 
 	void TCPServer::setup() {
 		
-		server.setup(11999);
-		// optionally set the delimiter to something else.  The delimiter in the client and the server have to be the same, default being [/TCP]
-		//server.setMessageDelimiter("\n");
-
+		server.setup(11999, true);
 		startThread();
 	}
 	// input data is  deleted by this object at the right time (at least that is the plan)
 	void TCPServer::update(const char * bytes, const size_t numBytes, char type, int clientID) {
 		string buffer;
-		if (compress(bytes, numBytes, buffer)) { // copy and compress data so caller can free passed data 
+		//if (compress(bytes, numBytes, buffer)) { // copy and compress data so caller can free passed data 
 			//buffer = "hi";
-			char *bytes2 = new char[sizeof(TCPMessage) + buffer.size()];
+			//int fullpacketSize = sizeof(TCPMessage) + buffer.size();
+			int fullpacketSize = sizeof(TCPMessage) + numBytes;
+			char *bytes2 = new char[fullpacketSize];
 			if (bytes2) {
 				TCPMessage* m = (TCPMessage*)bytes2;
-				m->numberOfBytes = sizeof(TCPMessage)+ buffer.size()-1;
-				m->bytesSize = buffer.size();
+				m->numberOfBytes = fullpacketSize;
+				m->bytesSize = numBytes;// buffer.size();
 				m->type = type;
 				m->clientID = clientID;
 				m->t = 's';
-				memcpy_s(m->bytes, m->bytesSize, buffer.c_str(), buffer.size()); // hate the double buffer move bugbug go to source/sync?
+				m->end = 0xff;
+				char*data = &m->end+sizeof(m->end);
+				char x = *(data - 1);
+				//memcpy_s(data, m->bytesSize, buffer.c_str(), buffer.size()); // hate the double buffer move bugbug go to source/sync?
+				memcpy_s(data, m->bytesSize, bytes, numBytes); // hate the double buffer move bugbug go to source/sync?
 				lock();
-				q.push_front(m); //bugbub do we want to add a priority? front & back? not sure
+				if (q.size() > 5) {
+					yield(); // let some queue drain bugbug do we need to put this writer in a thread?
+				}
+				q.push_front(m); //bugbub do we want to add a priority? 
 				unlock();
 			}
-		}
+		//}
 	}
 
 	// control data deletion (why we have our own thread) to avoid data copy since this code is in a Kinect crital path 
@@ -149,44 +155,59 @@ namespace Software2552 {
 		while (1) {
 			if (q.size() > 0) {
 				lock();
-				TCPMessage* m = q.front();
-				q.pop_front();
+				TCPMessage* m = q.back();// last in first out
+				q.pop_back();
 				unlock();
 				if (m) { 
 					sendbinary(m);
 					delete m;
+					yield();
 				}
 			}
-			ofSleepMillis(10);
 		}
 	}
 	void TCPServer::sendbinary(TCPMessage *m) {
 		if (m) {
 			if (m->numberOfBytes > MAXSEND) {
-				ofLogError("TCPServer::sendbinary") << "block too large " << m->numberOfBytes + " max " << MAXSEND;
+				ofLogError("TCPServer::sendbinary") << "block too large " << ofToString(m->numberOfBytes) + " max " << ofToString(MAXSEND);
 				return;
 			}
 
 			if (m->clientID > 0) {
-				server.sendRawBytes(m->clientID, (const char*)m, m->numberOfBytes);
+				server.sendRawMsg(m->clientID, (const char*)m, m->numberOfBytes);
 			}
 			else {
-				server.sendRawBytesToAll((const char*)m,  m->numberOfBytes);
+				server.sendRawMsgToAll((const char*)m,  m->numberOfBytes);
 			}
 		}
-		// we throttle the message sending frequency to once every 100ms
-		ofSleepMillis(90);
 	}
 	char TCPClient::update(string& buffer) {
 		char type = 0;
 		if (tcpClient.isConnected()) {
 			lock();// need to read one at a time to keep input organized
-			TCPMessage* msg = (TCPMessage*)std::malloc(sizeof(TCPMessage));
+			char* msg = (char*)std::malloc(sizeof(TCPMessage));
 			if (!msg) {
 				unlock();
 				return 0;
 			}
-			int messageSize = tcpClient.peekReceiveRawBytes((char*)msg, sizeof(TCPMessage));
+			int bytesRead2 = 0;
+			char* b = (char*)std::malloc(250000);
+			do {
+				int messageSize = tcpClient.receiveRawMsg(b, 250000);
+				if (messageSize > 0) {
+					bytesRead2 += messageSize;
+					ofLogWarning("msg") << ofToString(messageSize);
+					break;
+				}
+				else {
+					yield();// give up cpu and try again
+				}
+			} while (bytesRead2 < 25000);
+			free(b);
+			free(msg);
+			unlock();
+			return 0;
+			int messageSize = tcpClient.peekReceiveRawBytes(msg, sizeof(TCPMessage));
 			//int messageSize = tcpClient.receiveRawBytes((char*)msg, sizeof(TCPMessage)+msg->numberOfBytes);
 			if ((messageSize != sizeof(TCPMessage))) {
 				free(msg);
@@ -194,19 +215,19 @@ namespace Software2552 {
 				ofSleepMillis(100); // maybe things will come back
 				return 0;
 			}
-			if (msg->t != 's') {
+			if (((TCPMessage*)msg)->t != 's') {
 				free(msg);
-				unlock(); // not sure where the spurious data is coming from
+				unlock(); // input off, bug need to reset input
 				return 0;
 			}
-			if (msg->numberOfBytes > MAXSEND) {
-				ofLogError("TCPServer::sendbinary") << "block too large " << msg->numberOfBytes + " max " << MAXSEND;
+			if (((TCPMessage*)msg)->numberOfBytes > MAXSEND) {
+				ofLogError("TCPServer::sendbinary") << "block too large " << ofToString(((TCPMessage*)msg)->numberOfBytes) + " max " << ofToString(MAXSEND);
 				free(msg);
 				unlock();
 				ofSleepMillis(2000); // slow down, attack may be occuring
 				return 0;
 			}
-			msg = (TCPMessage*)std::realloc(msg, msg->numberOfBytes);
+			msg = (char*)std::realloc(msg, ((TCPMessage*)msg)->numberOfBytes);
 			if (!msg) {
 				ofSleepMillis(1000); // maybe things will come back
 				unlock();
@@ -214,29 +235,42 @@ namespace Software2552 {
 			}
 
 			//messageSize = tcpClient.receiveRawMsg((char*)msg, msg->numberOfBytes);
-			messageSize = tcpClient.receiveRawBytes((char*)msg, msg->numberOfBytes);
-			// if data was read
-			if (messageSize == msg->numberOfBytes) {
-				if (uncompress(msg->bytes, msg->bytesSize, buffer)) {
-					type = msg->type; // data should change a litte
+			int bytesRead = 0;
+			do {
+				messageSize = tcpClient.receiveRawMsg(&msg[bytesRead], ((TCPMessage*)msg)->numberOfBytes);
+				if (messageSize > 0) {
+					bytesRead += messageSize;
+				}
+				else {
+					ofSleepMillis(500);// wait and try again
+				}
+			} while (bytesRead < ((TCPMessage*)msg)->numberOfBytes);
+
+			// if data was read properly
+			if (bytesRead == ((TCPMessage*)msg)->numberOfBytes) {
+				char*data = &((TCPMessage*)msg)->end + sizeof(((TCPMessage*)msg)->end);
+				if (uncompress(data, ((TCPMessage*)msg)->bytesSize, buffer)) {
+					type = ((TCPMessage*)msg)->type; // data should change a litte
 				}
 				else {
 					ofLogError("data ignored");
 				}
 			}
+			else {
+
+				ofLogError("more data");
+			}
 			free(msg);
 			unlock();
 		}
 		else {
-			if (!tcpClient.setup("127.0.0.1", 11999)) {
-				ofSleepMillis(1000);
-			}
+			setup();
 		}
 		return type;
 	}
-	void TCPClient::setup() {
-
-		// optionally set the delimiter to something else.  The delimiter in the client and the server have to be the same
-		//tcpClient.setMessageDelimiter("\n");
+	void TCPClient::setup() {//192.168.1.21 or 127.0.0.1
+		if (!tcpClient.setup("192.168.1.21", 11999,true)) {
+			ofSleepMillis(1000);
+		}
 	}
 }

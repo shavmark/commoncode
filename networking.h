@@ -23,9 +23,9 @@ namespace Software2552 {
 		size_t numberOfBytes;// used to cross check data
 		char type;
 		int clientID;
-		char t = 's'; // just a data check
 		size_t bytesSize;// used to cross check data
-		char bytes[1];//compressed
+		char t = 's'; // just a data check
+		char end; // end of header
 	};
 
 	// deque allows push front and back and enumration so we do priorities and remove old data

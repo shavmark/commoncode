@@ -26,8 +26,6 @@ void Router::setup() {
 	server.setup();
 	comms.setup();
 }
-void Router::update() { 
-}
 void Router::send(const char * bytes, const size_t numBytes, char type, int clientID) {
 	if (numBytes > 0) {
 		server.update(bytes, numBytes, type, clientID);
@@ -41,14 +39,15 @@ void TCPReader::setup() {
 void TCPReader::threadedFunction() {
 	while (1) {
 		update();
-		ofSleepMillis(0);
+		yield();
 	}
 }
 
 void TCPReader::update() {
 	string buffer;
 	ofImage image;//bugbug convert to a an item for our drawing queue
-
+	///bug need to queue and have the main thread draw, which is what we do:
+	//For example, OpenGL can only run in the main execution thread.
 	switch (client.update(buffer)) {
 	case 0:
 		break;
