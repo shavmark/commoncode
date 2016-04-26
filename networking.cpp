@@ -119,7 +119,7 @@ namespace Software2552 {
 		
 		server.setup(11999);
 		// optionally set the delimiter to something else.  The delimiter in the client and the server have to be the same, default being [/TCP]
-		server.setMessageDelimiter("\n");
+		//server.setMessageDelimiter("\n");
 
 		startThread();
 	}
@@ -127,18 +127,16 @@ namespace Software2552 {
 	void TCPServer::update(const char * bytes, const size_t numBytes, char type, int clientID) {
 		string buffer;
 		if (compress(bytes, numBytes, buffer)) { // copy and compress data so caller can free passed data 
+			//buffer = "hi";
 			char *bytes2 = new char[sizeof(TCPMessage) + buffer.size()];
 			if (bytes2) {
 				TCPMessage* m = (TCPMessage*)bytes2;
-				m->numberOfBytes = sizeof(TCPMessage)+ buffer.size();
+				m->numberOfBytes = sizeof(TCPMessage)+ buffer.size()-1;
 				m->bytesSize = buffer.size();
-				//if (m->numberOfBytes > MAXSEND) {
-					//ofLogError("TCPServer") << "too large " << m->numberOfBytes;
-				//}
 				m->type = type;
 				m->clientID = clientID;
 				m->t = 's';
-				memcpy_s(m->bytes, m->numberOfBytes, buffer.c_str(), buffer.size()); // hate the double buffer move bugbug go to source/sync?
+				memcpy_s(m->bytes, m->bytesSize, buffer.c_str(), buffer.size()); // hate the double buffer move bugbug go to source/sync?
 				lock();
 				q.push_front(m); //bugbub do we want to add a priority? front & back? not sure
 				unlock();
@@ -239,6 +237,6 @@ namespace Software2552 {
 	void TCPClient::setup() {
 
 		// optionally set the delimiter to something else.  The delimiter in the client and the server have to be the same
-		tcpClient.setMessageDelimiter("\n");
+		//tcpClient.setMessageDelimiter("\n");
 	}
 }
