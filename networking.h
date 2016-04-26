@@ -19,13 +19,16 @@ namespace Software2552 {
 		static shared_ptr<ofxJSON> toJson(shared_ptr<ofxOscMessage>);
 		static shared_ptr<ofxOscMessage> fromJson(ofxJSON &data, const string&address);
 	};
+	struct Packet {
+		char type; // bytes only
+		char b[1];
+	};
 	struct TCPMessage {
 		size_t numberOfBytes;// used to cross check data
 		char type;
 		int clientID;
 		size_t bytesSize;// used to cross check data
-		char t = 's'; // just a data check
-		char end; // end of header
+		Packet packet; // data that is sent
 	};
 
 	// deque allows push front and back and enumration so we do priorities and remove old data

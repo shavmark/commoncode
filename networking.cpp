@@ -122,32 +122,25 @@ namespace Software2552 {
 	}
 	// input data is  deleted by this object at the right time (at least that is the plan)
 	void TCPServer::update(const char * bytes, const size_t numBytes, char type, int clientID) {
-		string buffer;
-		//if (compress(bytes, numBytes, buffer)) { // copy and compress data so caller can free passed data 
-			//buffer = "hi";
-			//int fullpacketSize = sizeof(TCPMessage) + buffer.size();
-			int fullpacketSize = sizeof(TCPMessage) + numBytes;
-			char *bytes2 = new char[fullpacketSize];
-			if (bytes2) {
-				TCPMessage* m = (TCPMessage*)bytes2;
-				m->numberOfBytes = fullpacketSize;
-				m->bytesSize = numBytes;// buffer.size();
-				m->type = type;
-				m->clientID = clientID;
-				m->t = 's';
-				m->end = 0xff;
-				char*data = &m->end+sizeof(m->end);
-				char x = *(data - 1);
-				//memcpy_s(data, m->bytesSize, buffer.c_str(), buffer.size()); // hate the double buffer move bugbug go to source/sync?
-				memcpy_s(data, m->bytesSize, bytes, numBytes); // hate the double buffer move bugbug go to source/sync?
+		string buffer = "hello";
+		if (compress(bytes, numBytes, buffer)) { // copy and compress data so caller can free passed data 
+			char *bytes = new char[sizeof(TCPMessage) + buffer.size()];
+			if (bytes) {
+				TCPMessage *message = (TCPMessage *)bytes;
+				message->packet.type = 'x';
+				message->packet.b[0] = 'z';// fence
+				message->numberOfBytes = sizeof(Packet) + buffer.size();
+				memcpy_s(&message->packet.b[1], buffer.size(), buffer.c_str(), buffer.size());
 				lock();
-				if (q.size() > 5) {
-					yield(); // let some queue drain bugbug do we need to put this writer in a thread?
+				if (q.size() > 500) {
+					// see if we can let send sender catch up
+					ofSleepMillis(100); // let some queue drain bugbug do we need to put this writer in a thread?
 				}
-				q.push_front(m); //bugbub do we want to add a priority? 
+				q.push_front(message); //bugbub do we want to add a priority? 
 				unlock();
 			}
-		//}
+		}
+		return;
 	}
 
 	// control data deletion (why we have our own thread) to avoid data copy since this code is in a Kinect crital path 
@@ -161,9 +154,9 @@ namespace Software2552 {
 				if (m) { 
 					sendbinary(m);
 					delete m;
-					yield();
 				}
 			}
+			yield();
 		}
 	}
 	void TCPServer::sendbinary(TCPMessage *m) {
@@ -174,10 +167,10 @@ namespace Software2552 {
 			}
 
 			if (m->clientID > 0) {
-				server.sendRawMsg(m->clientID, (const char*)m, m->numberOfBytes);
+				server.sendRawMsg(m->clientID, (const char*)&m->packet, m->numberOfBytes);
 			}
 			else {
-				server.sendRawMsgToAll((const char*)m,  m->numberOfBytes);
+				server.sendRawMsgToAll((const char*)&m->packet, m->numberOfBytes);
 			}
 		}
 	}
@@ -185,83 +178,41 @@ namespace Software2552 {
 		char type = 0;
 		if (tcpClient.isConnected()) {
 			lock();// need to read one at a time to keep input organized
-			char* msg = (char*)std::malloc(sizeof(TCPMessage));
-			if (!msg) {
-				unlock();
-				return 0;
+			char* b = (char*)std::malloc(MAXSEND);
+			if (b) {
+				int messageSize = 0;
+				do {
+					// this api will write the size of the data not the size of the buffer (ouch)
+					// it buffers data beteen its markets and returns 0 until all data between 
+					// markers is in its buffer which it then returns.
+					messageSize = tcpClient.receiveRawMsg(b, MAXSEND);
+					// only occurs due to bug or hack as we never send more than MAXSEND ourself, at this point we need to crash
+					if (messageSize > MAXSEND) {
+						ofExit(-2);
+					}
+					if (messageSize > 0) {
+						ofLogWarning("msg") << ofToString(messageSize);
+						break;
+					}
+					else {
+						yield();// give up cpu and try again
+					}
+				} while (1);
+				Packet*p = (Packet*)b;
+				if (p->type == 'x' && p->b[0] == 'z') { // z is fence
+					if (uncompress(&p->b[1], messageSize-sizeof(Packet), buffer)) {
+						type = ((Packet*)b)->type; // data should change a litte
+					}
+					else {
+						ofLogError("data ignored");
+					}
+				}
+
+				free(b);
 			}
-			int bytesRead2 = 0;
-			char* b = (char*)std::malloc(250000);
-			do {
-				int messageSize = tcpClient.receiveRawMsg(b, 250000);
-				if (messageSize > 0) {
-					bytesRead2 += messageSize;
-					ofLogWarning("msg") << ofToString(messageSize);
-					break;
-				}
-				else {
-					yield();// give up cpu and try again
-				}
-			} while (bytesRead2 < 25000);
-			free(b);
-			free(msg);
 			unlock();
 			return 0;
-			int messageSize = tcpClient.peekReceiveRawBytes(msg, sizeof(TCPMessage));
-			//int messageSize = tcpClient.receiveRawBytes((char*)msg, sizeof(TCPMessage)+msg->numberOfBytes);
-			if ((messageSize != sizeof(TCPMessage))) {
-				free(msg);
-				unlock();
-				ofSleepMillis(100); // maybe things will come back
-				return 0;
-			}
-			if (((TCPMessage*)msg)->t != 's') {
-				free(msg);
-				unlock(); // input off, bug need to reset input
-				return 0;
-			}
-			if (((TCPMessage*)msg)->numberOfBytes > MAXSEND) {
-				ofLogError("TCPServer::sendbinary") << "block too large " << ofToString(((TCPMessage*)msg)->numberOfBytes) + " max " << ofToString(MAXSEND);
-				free(msg);
-				unlock();
-				ofSleepMillis(2000); // slow down, attack may be occuring
-				return 0;
-			}
-			msg = (char*)std::realloc(msg, ((TCPMessage*)msg)->numberOfBytes);
-			if (!msg) {
-				ofSleepMillis(1000); // maybe things will come back
-				unlock();
-				return 0;
-			}
 
-			//messageSize = tcpClient.receiveRawMsg((char*)msg, msg->numberOfBytes);
-			int bytesRead = 0;
-			do {
-				messageSize = tcpClient.receiveRawMsg(&msg[bytesRead], ((TCPMessage*)msg)->numberOfBytes);
-				if (messageSize > 0) {
-					bytesRead += messageSize;
-				}
-				else {
-					ofSleepMillis(500);// wait and try again
-				}
-			} while (bytesRead < ((TCPMessage*)msg)->numberOfBytes);
-
-			// if data was read properly
-			if (bytesRead == ((TCPMessage*)msg)->numberOfBytes) {
-				char*data = &((TCPMessage*)msg)->end + sizeof(((TCPMessage*)msg)->end);
-				if (uncompress(data, ((TCPMessage*)msg)->bytesSize, buffer)) {
-					type = ((TCPMessage*)msg)->type; // data should change a litte
-				}
-				else {
-					ofLogError("data ignored");
-				}
-			}
-			else {
-
-				ofLogError("more data");
-			}
-			free(msg);
-			unlock();
 		}
 		else {
 			setup();
