@@ -6,17 +6,21 @@
 namespace Software2552 {
 
 // input buffer returned as reference
-string& compress(const char*buffer, size_t len, string&output) {
+bool compress(const char*buffer, size_t len, string&output) {
 	size_t size = snappy::Compress((const char*)buffer, len, &output);
-	return output;
+	if (size <= 0) {
+		ofLogError("compress") << "fails " << size;
+	}
+	return size  > 0;
 }
 
 // input buffer returned as reference
-string& uncompress(const char*buffer, size_t len, string&output) {
+bool uncompress(const char*buffer, size_t len, string&output) {
 	if (!snappy::Uncompress(buffer, len, &output)) {
 		ofLogError("uncompress") << "fails";
+		return false;
 	}
-	return output;
+	return true;
 }
 void Router::setup() {
 	server.setup();

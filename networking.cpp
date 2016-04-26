@@ -2,7 +2,7 @@
 #include "control.h"
 
 namespace Software2552 {
-#define MAXSEND (512*10*5)
+#define MAXSEND (1024*1024)
 
 	shared_ptr<ofxJSON> OSCMessage::toJson(shared_ptr<ofxOscMessage> m) {
 		if (m) {
@@ -11,7 +11,9 @@ namespace Software2552 {
 			if (p) {
 				string output;
 				string input = m->getArgAsString(0);
-				p->parse(uncompress(input.c_str(), input.size(), output));
+				if (uncompress(input.c_str(), input.size(), output)) {
+					p->parse(output);
+				}
 			}
 			return p;
 		}
@@ -27,7 +29,9 @@ namespace Software2552 {
 			// even compress the small ones so more messages can use UDP
 			string output;
 			string input = data.getRawString(false);
-			p->addStringArg(compress(input.c_str(), input.size(), output)); // all data is in json
+			if (compress(input.c_str(), input.size(), output)) {
+				p->addStringArg(output); // all data is in json
+			}
 		}
 		return p;
 	}
@@ -121,18 +125,24 @@ namespace Software2552 {
 	}
 	// input data is  deleted by this object at the right time (at least that is the plan)
 	void TCPServer::update(const char * bytes, const size_t numBytes, char type, int clientID) {
-		TCPMessage* m = new TCPMessage;
-		if (m) {
-			m->type = type;
-			m->clientID = clientID;
-			string buffer;
-			compress(bytes, numBytes, buffer); // copy and compress data so caller can free passed data 
-			m->numberOfBytes = buffer.size();
-			m->bytes = new char[m->numberOfBytes];
-			memcpy_s(m->bytes, m->numberOfBytes, buffer.c_str(), buffer.length()); // hate the double buffer move bugbug go to source/sync?
-			lock();
-			q.push_front(m); //bugbub do we want to add a priority? front & back? not sure
-			unlock();
+		string buffer;
+		if (compress(bytes, numBytes, buffer)) { // copy and compress data so caller can free passed data 
+			char *bytes2 = new char[sizeof(TCPMessage) + buffer.size()];
+			if (bytes2) {
+				TCPMessage* m = (TCPMessage*)bytes2;
+				m->numberOfBytes = sizeof(TCPMessage)+ buffer.size();
+				m->bytesSize = buffer.size();
+				//if (m->numberOfBytes > MAXSEND) {
+					//ofLogError("TCPServer") << "too large " << m->numberOfBytes;
+				//}
+				m->type = type;
+				m->clientID = clientID;
+				m->t = 's';
+				memcpy_s(m->bytes, m->numberOfBytes, buffer.c_str(), buffer.size()); // hate the double buffer move bugbug go to source/sync?
+				lock();
+				q.push_front(m); //bugbub do we want to add a priority? front & back? not sure
+				unlock();
+			}
 		}
 	}
 
@@ -146,7 +156,6 @@ namespace Software2552 {
 				unlock();
 				if (m) { 
 					sendbinary(m);
-					delete m->bytes;
 					delete m;
 				}
 			}
@@ -156,15 +165,15 @@ namespace Software2552 {
 	void TCPServer::sendbinary(TCPMessage *m) {
 		if (m) {
 			if (m->numberOfBytes > MAXSEND) {
-				ofLogError("TCPServer::sendbinary") << "block too large " << ofToString(m->bytes);
+				ofLogError("TCPServer::sendbinary") << "block too large " << m->numberOfBytes + " max " << MAXSEND;
 				return;
 			}
 
 			if (m->clientID > 0) {
-				server.sendRawBytes(m->clientID, (const char*)m, sizeof(TCPMessage)+m->numberOfBytes);
+				server.sendRawBytes(m->clientID, (const char*)m, m->numberOfBytes);
 			}
 			else {
-				server.sendRawBytesToAll((const char*)m, sizeof(TCPMessage) + m->numberOfBytes);
+				server.sendRawBytesToAll((const char*)m,  m->numberOfBytes);
 			}
 		}
 		// we throttle the message sending frequency to once every 100ms
@@ -173,22 +182,52 @@ namespace Software2552 {
 	char TCPClient::update(string& buffer) {
 		char type = 0;
 		if (tcpClient.isConnected()) {
-			//return or turn into json/ uncompress etc
-			char* buf = new char[MAXSEND]; // we control the send
-			if (!buf) {
-				ofSleepMillis(1000); // maybe things will come back
+			lock();// need to read one at a time to keep input organized
+			TCPMessage* msg = (TCPMessage*)std::malloc(sizeof(TCPMessage));
+			if (!msg) {
+				unlock();
 				return 0;
 			}
-			int messageSize;
-			// never send more than MAXSEND, helps w/ overflow attacks
-			messageSize = tcpClient.receiveRawBytes(buf, MAXSEND);
-			// if data was read
-			if (messageSize > 0) {
-				TCPMessage *badasss = (TCPMessage *)buf;
-				uncompress(badasss->bytes, badasss->numberOfBytes, buffer);
-				type = badasss->type;
+			int messageSize = tcpClient.peekReceiveRawBytes((char*)msg, sizeof(TCPMessage));
+			//int messageSize = tcpClient.receiveRawBytes((char*)msg, sizeof(TCPMessage)+msg->numberOfBytes);
+			if ((messageSize != sizeof(TCPMessage))) {
+				free(msg);
+				unlock();
+				ofSleepMillis(100); // maybe things will come back
+				return 0;
 			}
-			delete buf;
+			if (msg->t != 's') {
+				free(msg);
+				unlock(); // not sure where the spurious data is coming from
+				return 0;
+			}
+			if (msg->numberOfBytes > MAXSEND) {
+				ofLogError("TCPServer::sendbinary") << "block too large " << msg->numberOfBytes + " max " << MAXSEND;
+				free(msg);
+				unlock();
+				ofSleepMillis(2000); // slow down, attack may be occuring
+				return 0;
+			}
+			msg = (TCPMessage*)std::realloc(msg, msg->numberOfBytes);
+			if (!msg) {
+				ofSleepMillis(1000); // maybe things will come back
+				unlock();
+				return 0;
+			}
+
+			//messageSize = tcpClient.receiveRawMsg((char*)msg, msg->numberOfBytes);
+			messageSize = tcpClient.receiveRawBytes((char*)msg, msg->numberOfBytes);
+			// if data was read
+			if (messageSize == msg->numberOfBytes) {
+				if (uncompress(msg->bytes, msg->bytesSize, buffer)) {
+					type = msg->type; // data should change a litte
+				}
+				else {
+					ofLogError("data ignored");
+				}
+			}
+			free(msg);
+			unlock();
 		}
 		else {
 			if (!tcpClient.setup("127.0.0.1", 11999)) {

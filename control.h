@@ -2,8 +2,8 @@
 
 
 namespace Software2552 {
-	string& compress(const char*buffer, size_t len, string&output);
-	string& uncompress(const char*buffer, size_t len, string&output);
+	bool compress(const char*buffer, size_t len, string&output);
+	bool uncompress(const char*buffer, size_t len, string&output);
 
 	class TCPReader : public ofThread {
 	public:

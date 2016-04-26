@@ -20,10 +20,12 @@ namespace Software2552 {
 		static shared_ptr<ofxOscMessage> fromJson(ofxJSON &data, const string&address);
 	};
 	struct TCPMessage {
-		char type;
 		size_t numberOfBytes;// used to cross check data
+		char type;
 		int clientID;
-		char* bytes;//compressed
+		char t = 's'; // just a data check
+		size_t bytesSize;// used to cross check data
+		char bytes[1];//compressed
 	};
 
 	// deque allows push front and back and enumration so we do priorities and remove old data
@@ -72,7 +74,7 @@ namespace Software2552 {
 		ofxTCPServer server;
 		deque<TCPMessage*> q;
 	};
-	class TCPClient {
+	class TCPClient : ofThread {
 	public:
 		void setup();
 		char update(string& buffer);
