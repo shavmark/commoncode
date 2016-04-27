@@ -45,7 +45,6 @@ namespace Software2552 {
 		char b[1]; // validates data was properly read
 	};
 	struct TCPMessage {
-		size_t numberOfBytes;	// size of this entire object including a popuplated TCPPacket
 		int clientID;			// -1 for all connected
 		size_t numberOfBytesToSend;
 		TCPPacket packet;		// data that is sent

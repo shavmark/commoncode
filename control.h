@@ -5,9 +5,22 @@ namespace Software2552 {
 	bool compress(const char*buffer, size_t len, string&output);
 	bool uncompress(const char*buffer, size_t len, string&output);
 	void bodyIndexFromTCP(const char * bytes, const int numBytes, ofImage& image);
-	void IRFromTCP(const char * bytes, const int numBytes, ofImage& image);
-	void bodyFromTCP(const char * bytes, const int numBytes);
+	void IRFromTCP(const UINT16 * bytes, ofImage& image);
 	PacketType mapPortToType(OurPorts ports);
+
+	class Kinect {
+	public:
+		void draw();
+		void setup(ofxJSON& data);
+	private:
+		void setHand(const Json::Value &data, float x, float y);
+		void setFace(const Json::Value &data);
+		vector <ofPoint> circles; // z is radius
+		vector <ofPoint> faceitems; 
+		vector <ofVec4f> elipses;
+	};
+
+	void bodyFromTCP(const char * bytes, const int numBytes, Kinect&);
 
 	typedef std::unordered_map<OurPorts, shared_ptr<TCPClient>> ClientMap;
 

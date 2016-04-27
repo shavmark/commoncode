@@ -161,16 +161,16 @@ namespace Software2552 {
 	}
 	void TCPServer::sendbinary(TCPMessage *m) {
 		if (m) {
-			if (m->numberOfBytes > MAXSEND) {
-				ofLogError("TCPServer::sendbinary") << "block too large " << ofToString(m->numberOfBytes) + " max " << ofToString(MAXSEND);
+			if (m->numberOfBytesToSend > MAXSEND) {
+				ofLogError("TCPServer::sendbinary") << "block too large " << ofToString(m->numberOfBytesToSend) + " max " << ofToString(MAXSEND);
 				return;
 			}
 
 			if (m->clientID > 0) {
-				server.sendRawMsg(m->clientID, (const char*)&m->packet, m->numberOfBytes);
+				server.sendRawMsg(m->clientID, (const char*)&m->packet, m->numberOfBytesToSend);
 			}
 			else {
-				server.sendRawMsgToAll((const char*)&m->packet, m->numberOfBytes);
+				server.sendRawMsgToAll((const char*)&m->packet, m->numberOfBytesToSend);
 			}
 		}
 	}
