@@ -115,21 +115,21 @@ namespace Software2552 {
 		return j;
 	}
 
-	void TCPServer::setup() {
-		
-		server.setup(11999, true);
+	void TCPServer::setup(int port, bool blocking) {
+		//11999
+		server.setup(port, blocking);
 		startThread();
 	}
 	// input data is  deleted by this object at the right time (at least that is the plan)
-	void TCPServer::update(const char * bytes, const size_t numBytes, char type, int clientID) {
+	void TCPServer::update(const char * bytes, const size_t numBytes, PacketType type, int clientID) {
 		string buffer = "hello";
 		if (compress(bytes, numBytes, buffer)) { // copy and compress data so caller can free passed data 
 			char *bytes = new char[sizeof(TCPMessage) + buffer.size()];
 			if (bytes) {
 				TCPMessage *message = (TCPMessage *)bytes;
-				message->packet.type = 'x';
-				message->packet.b[0] = 'z';// fence
-				message->numberOfBytes = sizeof(Packet) + buffer.size();
+				message->packet.type = type; // passed as a double check
+				message->packet.b[0] = PacketFence; // help check for lost or out of sync data
+				message->numberOfBytesToSend = sizeof(TCPPacket) + buffer.size();
 				memcpy_s(&message->packet.b[1], buffer.size(), buffer.c_str(), buffer.size());
 				lock();
 				if (q.size() > 500) {
@@ -182,13 +182,13 @@ namespace Software2552 {
 			if (b) {
 				int messageSize = 0;
 				do {
-					// this api will write the size of the data not the size of the buffer (ouch)
+					// this api will write the size of the data not the size of the buffer we pass in (ouch)
 					// it buffers data beteen its markets and returns 0 until all data between 
 					// markers is in its buffer which it then returns.
 					messageSize = tcpClient.receiveRawMsg(b, MAXSEND);
 					// only occurs due to bug or hack as we never send more than MAXSEND ourself, at this point we need to crash
 					if (messageSize > MAXSEND) {
-						ofExit(-2);
+						ofExit(-2); // enables DOS, the real fix is for to not over flow receiveRawMsg
 					}
 					if (messageSize > 0) {
 						ofLogWarning("msg") << ofToString(messageSize);
@@ -198,10 +198,10 @@ namespace Software2552 {
 						yield();// give up cpu and try again
 					}
 				} while (1);
-				Packet*p = (Packet*)b;
-				if (p->type == 'x' && p->b[0] == 'z') { // z is fence
-					if (uncompress(&p->b[1], messageSize-sizeof(Packet), buffer)) {
-						type = ((Packet*)b)->type; // data should change a litte
+				TCPPacket*p = (TCPPacket*)b;
+				if (p->b[0] == PacketFence) { // basic validation
+					if (uncompress(&p->b[1], messageSize-sizeof(TCPPacket), buffer)) {
+						type = ((TCPPacket*)b)->type; // data should change a litte
 					}
 					else {
 						ofLogError("data ignored");
@@ -219,9 +219,10 @@ namespace Software2552 {
 		}
 		return type;
 	}
-	void TCPClient::setup() {//192.168.1.21 or 127.0.0.1
-		if (!tcpClient.setup("192.168.1.21", 11999,true)) {
-			ofSleepMillis(1000);
+	void TCPClient::setup(const string& ip, int port, bool blocking) {//192.168.1.21 or 127.0.0.1
+		if (!tcpClient.setup(ip, port, blocking)) {
+			ofSleepMillis(500); // wait before a try again if failed
+			tcpClient.setup(ip, port, blocking); // caller must try again beyond this
 		}
 	}
 }

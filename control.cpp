@@ -4,6 +4,18 @@
 #include "inc\Kinect.h" // needed for enums
 
 namespace Software2552 {
+	PacketType mapPortToType(OurPorts ports) {
+		switch (ports) {
+		case TCP:
+			return TCPID;
+		case TCPKinectIR:
+			return IrID;
+		case TCPKinectBodyIndex:
+			return BodyIndexID;
+		case TCPKinectBody:
+			return BodyID;
+		}
+	}
 
 // input buffer returned as reference
 bool compress(const char*buffer, size_t len, string&output) {
@@ -23,18 +35,27 @@ bool uncompress(const char*buffer, size_t len, string&output) {
 	return true;
 }
 void Router::setup() {
-	server.setup();
+	addTCP(TCP, true);
+	addTCP(TCPKinectIR, true);
+	addTCP(TCPKinectBodyIndex, true);
+	addTCP(TCPKinectBody, true);
+
 	comms.setup();
 }
-void Router::send(const char * bytes, const size_t numBytes, char type, int clientID) {
+void Router::send(const char * bytes, const size_t numBytes, OurPorts port, int clientID) {
 	if (numBytes > 0) {
-		server.update(bytes, numBytes, type, clientID);
+		ServerMap::iterator s = servers.find(port);
+		if (s != servers.end()) {
+			s->second->update(bytes, numBytes, mapPortToType(port), clientID);
+		}
 	}
 }
 
-void TCPReader::setup() {
-	client.setup();
-	startThread();
+void TCPReader::setup(const string& ip) {
+	add(); // add a default client
+	add("192.168.1.21", TCPKinectIR, true); //bugbug get server via osc broad cast or such
+	add("192.168.1.21", TCPKinectBody, true); 
+	add("192.168.1.21", TCPKinectBodyIndex, true); 
 }
 void TCPReader::threadedFunction() {
 	while (1) {
@@ -43,31 +64,61 @@ void TCPReader::threadedFunction() {
 	}
 }
 
-void TCPReader::update() {
-	string buffer;
-	ofImage image;//bugbug convert to a an item for our drawing queue
-	///bug need to queue and have the main thread draw, which is what we do:
-	//For example, OpenGL can only run in the main execution thread.
-	switch (client.update(buffer)) {
-	case 0:
-		break;
-	case IR:
-		//IRFromTCP(buffer, image);
-		break;
-	case JSON: // raw jason
-		break;
-	case BODY:
-		//bodyFromTCP(buffer);
-		break;
-	case BODYINDEX:
-		//bodyIndexFromTCP(buffer, image);
-		break;
-	default:
-		break;
+void TCPReader::add(const string& ip, OurPorts port, bool blocking) {
+	shared_ptr<TCPClient> c = std::make_shared<TCPClient>();
+	if (c) {
+		c->setup(ip, TCP, blocking);
+		clients[port] = c;
 	}
 }
-void TCPReader::IRFromTCP(const string& buffer, ofImage& image) {
-	if (buffer.size() == 0) {
+void Router::addTCP(OurPorts port, bool blocking) {
+	shared_ptr<TCPServer> s = std::make_shared<TCPServer>();
+	if (s) {
+		s->setup(port, blocking);
+		servers[port] = s; // will create a new queue if needed
+	}
+}
+
+// get data
+bool TCPReader::get(OurPorts port, string& buffer) {
+	
+	ClientMap::iterator c = clients.find(port);
+	if (c != clients.end()) {
+		char type = c->second->update(buffer);
+		if (type == mapPortToType(port)) {
+			return true;
+		}
+		else {
+			ofLogError("TCPReader::get()") << " wrong type " << type << "for port " << port;
+			return false;
+		}
+	}
+}
+
+void TCPReader::update() {
+	ofImage image;//bugbug convert to a an item for our drawing queue
+	string buffer;
+
+	// this code is designed to read all set connections, validate data and process it
+	if (get(TCPKinectBodyIndex, buffer)) {
+		bodyIndexFromTCP(buffer.c_str(), buffer.size(), image);
+	}
+
+	if (get(TCPKinectBody, buffer)) {
+		bodyFromTCP(buffer.c_str(), buffer.size());
+	}
+
+	if (get(TCPKinectIR, buffer)) {
+		IRFromTCP(buffer.c_str(), buffer.size(), image);
+	}
+
+	if (get(TCP, buffer)) {
+		;// not defined yet
+	}
+
+}
+void IRFromTCP(const char * bytes, const int numBytes, ofImage& image) {
+	if (numBytes == 0) {
 		return;
 	}
 	int width = 512; //bugbug constants
@@ -76,12 +127,15 @@ void TCPReader::IRFromTCP(const string& buffer, ofImage& image) {
 	for (float y = 0; y < height; y++) {
 		for (float x = 0; x < width; x++) {
 			unsigned int index = y * width + x;
-			image.setColor(x, y, ofColor::fromHsb(255, 50, buffer[index]));
+			if (index < numBytes) {
+				image.setColor(x, y, ofColor::fromHsb(255, 50, bytes[index]));
+
+			}
 		}
 	}
 	image.update();
 }
-void TCPReader::bodyFromTCP(const string& buffer) {
+void bodyFromTCP(const char * bytes, const int numBytes) {
 	// get the json from the buffer
 	Json::Value data;
 
@@ -104,8 +158,8 @@ void TCPReader::bodyFromTCP(const string& buffer) {
 }
 
 // call on every update (this is done on the client side, not the server side)
-void TCPReader::bodyIndexFromTCP(const string& buffer, ofImage& image) {
-		if (buffer.size() == 0) {
+void bodyIndexFromTCP(const char * bytes, const int numBytes, ofImage& image) {
+		if (numBytes == 0) {
 			return;
 		}
 
@@ -114,7 +168,7 @@ void TCPReader::bodyIndexFromTCP(const string& buffer, ofImage& image) {
 		int width = 512;
 		int height = 424;
 
-		unsigned char*b2 = (unsigned char*)buffer.c_str();
+		unsigned char*b2 = (unsigned char*)bytes;
 		image.allocate(width, height, OF_IMAGE_COLOR);
 		bool found = false;
 		for (float y = 0; y < height; y++) {

@@ -10,25 +10,45 @@
 #include "ofxNetwork.h"
 
 
-	// phase II go to something like IoTivity or AllJoyn, let the dust settle.  
+// phase II go to something like IoTivity or AllJoyn, let the dust settle.  
 
 // notes: remote files can use ofImage.loadImage("http://some.com/url.png")
 namespace Software2552 {
+	enum PacketType : char {
+		TCPID = 't',
+		BodyIndexID = 'x',
+		IrID = 'i',
+		BodyID = 'b',
+		JsonID = 'j'
+	};
+
+	enum OurPorts : int {
+		OSC = 2552, 
+		TCP, // generic TCP
+		TCPKinectIR,
+		TCPKinectBodyIndex,
+		TCPKinectBody
+	};
+
+	
 	class OSCMessage {
 	public:
 		static shared_ptr<ofxJSON> toJson(shared_ptr<ofxOscMessage>);
 		static shared_ptr<ofxOscMessage> fromJson(ofxJSON &data, const string&address);
 	};
-	struct Packet {
-		char type; // bytes only
-		char b[1];
+
+	const char PacketFence = 'f'; // used to validate packet were set properly
+
+	// what gets sent over the wire
+	struct TCPPacket {
+		char type; // byte only
+		char b[1]; // validates data was properly read
 	};
 	struct TCPMessage {
-		size_t numberOfBytes;// used to cross check data
-		char type;
-		int clientID;
-		size_t bytesSize;// used to cross check data
-		Packet packet; // data that is sent
+		size_t numberOfBytes;	// size of this entire object including a popuplated TCPPacket
+		int clientID;			// -1 for all connected
+		size_t numberOfBytesToSend;
+		TCPPacket packet;		// data that is sent
 	};
 
 	// deque allows push front and back and enumration so we do priorities and remove old data
@@ -36,7 +56,7 @@ namespace Software2552 {
 
 	class WriteOsc : public ofThread {
 	public:
-		void setup(const string &hostname = "192.168.1.255", int port = 2552);
+		void setup(const string &hostname = "192.168.1.255", int port = OSC);
 
 		// add a message to be sent
 		void update(ofxJSON &data, const string&address);
@@ -52,7 +72,7 @@ namespace Software2552 {
 
 	class ReadOsc : public ofThread {
 	public:
-		void setup(int port = 2552);
+		void setup(int port = OSC);
 
 		shared_ptr<ofxJSON> get(const string&address);
 
@@ -64,13 +84,9 @@ namespace Software2552 {
 
 	class TCPServer : public ofThread {
 	public:
-		void setup();
-#define BODYINDEX 'x'
-#define IR 'i'
-#define BODY 'b'
-#define JSON 'j'
-		// type B(BodyIndex), I(IR), X(BodyIndex)
-		void update(const char * rawBytes, const size_t numBytes, char type, int clientID = -1);
+		void setup(int port= TCP, bool blocking = false);
+		int port() { return server.getPort(); }
+		void update(const char * rawBytes, const size_t numBytes, PacketType type, int clientID = -1);
 	private:
 		void threadedFunction();
 		void sendbinary(TCPMessage *m);
@@ -79,7 +95,7 @@ namespace Software2552 {
 	};
 	class TCPClient : ofThread {
 	public:
-		void setup();
+		void setup(const string& ip= "192.168.1.21", int _port=TCP, bool blocking=false);
 		char update(string& buffer);
 	private:
 		ofxTCPClient tcpClient;
