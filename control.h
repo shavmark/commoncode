@@ -1,7 +1,20 @@
 #pragma once
 
-
 namespace Software2552 {
+#define kinectWidthForColor 1920
+#define kinectHeightForColor 1080
+#define kinectWidthForIR 512
+#define kinectHeightForIR 424
+#define kinectWidthForDepth 512
+#define kinectHeightForDepth 424
+
+	// from https://github.com/ekino/ek-winjs-kinect/blob/master/platforms/windows/references/KinectImageProcessor/InfraredHelper.cpp
+#define InfraredOutputValueMinimum 0.01f 
+#define InfraredOutputValueMaximum 1.0f
+#define InfraredSourceValueMaximum static_cast<float>(USHRT_MAX)
+#define InfraredSceneStandardDeviations 3.0f
+#define InfraredSceneValueAverage 0.08f
+
 	bool compress(const char*buffer, size_t len, string&output);
 	bool uncompress(const char*buffer, size_t len, string&output);
 	void bodyIndexFromTCP(const char * bytes, const int numBytes, ofImage& image);
@@ -13,6 +26,7 @@ namespace Software2552 {
 		void draw();
 		void setup(ofxJSON& data);
 	private:
+
 		void setHand(const Json::Value &data, float x, float y);
 		void setFace(const Json::Value &data);
 		vector <ofPoint> circles; // z is radius

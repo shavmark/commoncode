@@ -1,5 +1,4 @@
 #include "ofApp.h"
-#include "control.h"
 
 namespace Software2552 {
 #define MAXSEND (1024*1024)
