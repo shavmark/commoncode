@@ -24,7 +24,8 @@ namespace Software2552 {
 	class Face {
 	public:
 		void draw();
-		void setup(const Json::Value &data);
+		void update(const Json::Value &data);
+		void setup();
 	private:
 		vector <ofPoint> points;
 		vector <ofVec4f> elipses;
@@ -37,7 +38,8 @@ namespace Software2552 {
 	class Kinect {
 	public:
 		void draw();
-		void setup(ofxJSON& data);
+		void update(ofxJSON& data);
+		void setup();
 		Face face;
 	private:
 

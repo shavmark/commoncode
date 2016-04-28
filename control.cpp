@@ -161,7 +161,7 @@ namespace Software2552 {
 		}
 		image.update();
 	}
-	void Face::setup(const Json::Value &data) {
+	void Face::update(const Json::Value &data) {
 		points.clear();
 		elipses.clear();
 
@@ -175,34 +175,37 @@ namespace Software2552 {
 		if (m.size() < 3) {
 			return; // not enough data to matter
 		}
+
+		float ratio = (ofGetScreenWidth() / kinectWidthForColor);
+
 		// setup upper left
-		rectangle.set(data["boundingBox"]["left"].asFloat(), data["boundingBox"]["top"].asFloat(),
-			data["boundingBox"]["right"].asFloat()- data["boundingBox"]["left"].asFloat(),
-			data["boundingBox"]["top"].asFloat()- data["boundingBox"]["bottom"].asFloat());
+		rectangle.set(data["boundingBox"]["left"].asFloat()*ratio, data["boundingBox"]["top"].asFloat()*ratio,
+			data["boundingBox"]["right"].asFloat()*ratio - data["boundingBox"]["left"].asFloat()*ratio,
+			data["boundingBox"]["bottom"].asFloat()*ratio - data["boundingBox"]["top"].asFloat()*ratio);
 
 		pitch = data["rotation"]["pitch"].asFloat();
 		yaw = data["rotation"]["yaw"].asFloat();
 		roll = data["rotation"]["roll"].asFloat(); // bugbug rotate this in 3d
 
-		float x = data["eye"]["left"]["x"].asFloat() - yaw;
-		float y = data["eye"]["left"]["y"].asFloat() - pitch;
+		float x = data["eye"]["left"]["x"].asFloat() * ratio;
+		float y = data["eye"]["left"]["y"].asFloat()* ratio;
 
 		float radius = (data["eye"]["left"]["closed"].asBool()) ? 15 : 25;
 		elipses.push_back(ofVec4f(x, y, 10, 20));
 
-		x = data["eye"]["right"]["x"].asFloat();
-		y = data["eye"]["right"]["y"].asFloat();
+		x = data["eye"]["right"]["x"].asFloat()*ratio;
+		y = data["eye"]["right"]["y"].asFloat()*ratio;
 		radius = (data["face"]["eye"]["right"]["closed"].asBool()) ? 5 : 10;
 		elipses.push_back(ofVec4f(x, y, 10, 20));
 
-		x = data["nose"]["x"].asFloat();
-		y = data["nose"]["y"].asFloat();
+		x = data["nose"]["x"].asFloat()*ratio;
+		y = data["nose"]["y"].asFloat()*ratio;
 		elipses.push_back(ofVec4f(x, y, 10, 15));
 
-		x = data["mouth"]["left"]["x"].asFloat();
-		y = data["mouth"]["left"]["y"].asFloat();
-		float x2 = data["mouth"]["right"]["x"].asFloat();
-		float y2 = data["mouth"]["right"]["y"].asFloat();
+		x = data["mouth"]["left"]["x"].asFloat()*ratio;
+		y = data["mouth"]["left"]["y"].asFloat()*ratio;
+		float x2 = data["mouth"]["right"]["x"].asFloat()*ratio;
+		float y2 = data["mouth"]["right"]["y"].asFloat()*ratio;
 
 		if (data["happy"].asBool()) {
 			elipses.push_back(ofVec4f(x, y, 15, 50));//bugbug for now just one circule, make better mouth later
@@ -219,19 +222,24 @@ namespace Software2552 {
 		}
 
 	}
+	void Face::setup() {
+	}
 	// draw face separte from body
 	void Face::draw() {
 		ofSetColor(ofColor::blue); //bugbug clean changing up to fit in with rest of app, also each user gets a color
 		ofPushStyle();
-		ofFill();
+		//ofFill();
 		if (rectangle.width != 0) {
-			ofPushMatrix();
-			ofRotateX(roll);
-			ofRotateY(yaw);
-			ofRotateZ(pitch);
+			//ofPushMatrix();
+			//ofTranslate(rectangle.width / 2, rectangle.height / 2, 0);//move pivot to centre
+			//ofRotateZ(roll); // bugbug figure out rotation
+			//ofRotateY(yaw);
+			//ofRotateX(pitch);
 			ofDrawRectRounded(rectangle, 5);
-			ofPopMatrix();
-
+			//ofPushMatrix();
+			//rectangle.draw(-rectangle.width / 2, -rectangle.height / 2);//move back by the centre offset
+			//ofPopMatrix();
+			//ofPopMatrix();
 		}
 		ofSetColor(ofColor::red); //bugbug clean changing up to fit in with rest of app, also each user gets a color
 		for (const auto&face : points) {
@@ -244,22 +252,22 @@ namespace Software2552 {
 		ofPopStyle();
 
 	}
+	void Kinect::setup() {
+	}
 	// need to add this to our model etc
 	void Kinect::draw() {
 		ofColor color = ofColor::orange;
-		ofPushStyle();
+		float ratio = (ofGetScreenWidth() / kinectWidthForDepth);
 		ofNoFill();
-		float scale = 2;//bugbug make this a working thing
 		for (const auto&circle : points) {
 			ofSetColor(color); //bugbug clean changing up to fit in with rest of app
 			color.setHue(color.getHue() + 6.0f);
-			ofDrawCircle(circle.x, circle.y, circle.z*scale);
+			ofDrawCircle(circle.x*ratio, circle.y*ratio, circle.z*ratio);
 		}
-		ofPopStyle();
 
 	}
 	void Kinect::setFace(const Json::Value &data) {
-		face.setup(data);
+		face.update(data);
 	}
 
 	void Kinect::setHand(const Json::Value &data, float x, float y) {
@@ -273,10 +281,11 @@ namespace Software2552 {
 			points.push_back(ofPoint(x, y, 1));
 		}
 	}
-	void Kinect::setup(ofxJSON& data) {
+	void Kinect::update(ofxJSON& data) {
 		points.clear();
+
 		for (Json::ArrayIndex i = 0; i < data["body"].size(); ++i) {
-			face.setup(data["body"][i]["face"]);
+			face.update(data["body"][i]["face"]);
 			Json::Value::Members m = data["body"][i].getMemberNames();
 			for (Json::ArrayIndex j = 0; j < data["body"][i]["joint"].size(); ++j) {
 				float x = data["body"][i]["joint"][j]["depth"]["x"].asFloat(); // using depth coords which will not match the face
@@ -305,7 +314,7 @@ namespace Software2552 {
 			ofLogError("bodyFromTCP") << "invalid json " << bytes;// lets hope its null terminated
 			return;
 		}
-		body.setup(data);
+		body.update(data);
 	}
 
 }
