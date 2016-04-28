@@ -161,118 +161,141 @@ namespace Software2552 {
 		}
 		image.update();
 	}
+	void Face::setup(const Json::Value &data) {
+		points.clear();
+		elipses.clear();
+
+		if (data.size() == 0) {
+			return;
+		}
+		//bugbug figure out a way to scale to all screens, like do the ratio of 1000x1000 are the values we use then mult by scale, not sure, but its
+		// drawing thing more than a data thing
+		Json::Value::Members m = data.getMemberNames();
+
+		if (m.size() < 3) {
+			return; // not enough data to matter
+		}
+		// setup upper left
+		rectangle.set(data["boundingBox"]["left"].asFloat(), data["boundingBox"]["top"].asFloat(),
+			data["boundingBox"]["right"].asFloat()- data["boundingBox"]["left"].asFloat(),
+			data["boundingBox"]["top"].asFloat()- data["boundingBox"]["bottom"].asFloat());
+
+		pitch = data["rotation"]["pitch"].asFloat();
+		yaw = data["rotation"]["yaw"].asFloat();
+		roll = data["rotation"]["roll"].asFloat(); // bugbug rotate this in 3d
+
+		float x = data["eye"]["left"]["x"].asFloat() - yaw;
+		float y = data["eye"]["left"]["y"].asFloat() - pitch;
+
+		float radius = (data["eye"]["left"]["closed"].asBool()) ? 15 : 25;
+		elipses.push_back(ofVec4f(x, y, 10, 20));
+
+		x = data["eye"]["right"]["x"].asFloat();
+		y = data["eye"]["right"]["y"].asFloat();
+		radius = (data["face"]["eye"]["right"]["closed"].asBool()) ? 5 : 10;
+		elipses.push_back(ofVec4f(x, y, 10, 20));
+
+		x = data["nose"]["x"].asFloat();
+		y = data["nose"]["y"].asFloat();
+		elipses.push_back(ofVec4f(x, y, 10, 15));
+
+		x = data["mouth"]["left"]["x"].asFloat();
+		y = data["mouth"]["left"]["y"].asFloat();
+		float x2 = data["mouth"]["right"]["x"].asFloat();
+		float y2 = data["mouth"]["right"]["y"].asFloat();
+
+		if (data["happy"].asBool()) {
+			elipses.push_back(ofVec4f(x, y, 15, 50));//bugbug for now just one circule, make better mouth later
+		}
+		else if (data["mouth"]["open"].asBool()) {
+			elipses.push_back(ofVec4f(x, y, abs(x - x2), 10));//bugbug for now just one circule, make better mouth later
+		}
+		else if (data["mouth"]["moved"].asBool()) {
+			elipses.push_back(ofVec4f(x, y, 5 + abs(x - x2), ofRandom(15)));//bugbug for now just one circule, make better mouth later
+		}
+		else {
+			points.push_back(ofPoint(x, y, 15));
+			points.push_back(ofPoint(x2, y2, 15));
+		}
+
+	}
+	// draw face separte from body
+	void Face::draw() {
+		ofSetColor(ofColor::blue); //bugbug clean changing up to fit in with rest of app, also each user gets a color
+		ofPushStyle();
+		ofFill();
+		if (rectangle.width != 0) {
+			ofPushMatrix();
+			ofRotateX(roll);
+			ofRotateY(yaw);
+			ofRotateZ(pitch);
+			ofDrawRectRounded(rectangle, 5);
+			ofPopMatrix();
+
+		}
+		ofSetColor(ofColor::red); //bugbug clean changing up to fit in with rest of app, also each user gets a color
+		for (const auto&face : points) {
+			ofDrawCircle(face.x, face.y, face.z); // z is radius
+		}
+		ofSetColor(ofColor::green); //bugbug clean changing up to fit in with rest of app, also each user gets a color
+		for (const auto&e : elipses) {
+			ofDrawEllipse(e.x, e.y, e.z, e.w);
+		}
+		ofPopStyle();
+
+	}
 	// need to add this to our model etc
 	void Kinect::draw() {
 		ofColor color = ofColor::orange;
 		ofPushStyle();
 		ofNoFill();
 		float scale = 2;//bugbug make this a working thing
-		for (const auto&circle : circles) {
+		for (const auto&circle : points) {
 			ofSetColor(color); //bugbug clean changing up to fit in with rest of app
 			color.setHue(color.getHue() + 6.0f);
 			ofDrawCircle(circle.x, circle.y, circle.z*scale);
 		}
 		ofPopStyle();
 
-		color = ofColor::blue;
-		ofPushStyle();
-		ofFill();
-		for (const auto&face : faceitems) {
-			color.setHue(color.getHue() + 8.0f);
-			ofSetColor(color); //bugbug clean changing up to fit in with rest of app
-			ofDrawCircle(face.x, face.y, face.z*scale);
-		}
-		for (const auto&e : elipses) {
-			color.setHue(color.getHue() + 2.0f);
-			ofSetColor(color); //bugbug clean changing up to fit in with rest of app
-			ofDrawEllipse(e.x, e.y, e.z*scale, e.w*scale);
-		}
-		ofPopStyle();
-
 	}
 	void Kinect::setFace(const Json::Value &data) {
-		if (data["face"].size() == 0) {
-			return;
-		}
-		//bugbug figure out a way to scale to all screens, like do the ratio of 1000x1000 are the values we use then mult by scale, not sure, but its
-		// drawing thing more than a data thing
-		Json::Value::Members m = data["face"].getMemberNames();
-
-		if (m.size() < 3) {
-			return; // not enough data to matter
-		}
-		float pitch = data["face"]["rotation"]["pitch"].asFloat();
-		float yaw = data["face"]["rotation"]["yaw"].asFloat();
-		float roll = data["face"]["rotation"]["roll"].asFloat(); // bugbug rotate this in 3d
-
-		float x = data["face"]["eye"]["left"]["x"].asFloat() - yaw;
-		float y = data["face"]["eye"]["left"]["y"].asFloat() - pitch;
-
-		float radius = (data["face"]["eye"]["left"]["closed"].asBool()) ? 15 : 25;
-		elipses.push_back(ofVec4f(x, y, 10, 20));
-
-		x = data["face"]["eye"]["right"]["x"].asFloat();
-		y = data["face"]["eye"]["right"]["y"].asFloat();
-		radius = (data["face"]["eye"]["right"]["closed"].asBool()) ? 5 : 10;
-		elipses.push_back(ofVec4f(x, y, 10, 20));
-
-		x = data["face"]["nose"]["x"].asFloat();
-		y = data["face"]["nose"]["y"].asFloat();
-		elipses.push_back(ofVec4f(x, y, 10, 15));
-
-		x = data["face"]["mouth"]["left"]["x"].asFloat();
-		y = data["face"]["mouth"]["left"]["y"].asFloat();
-		float x2 = data["face"]["mouth"]["right"]["x"].asFloat();
-		float y2 = data["face"]["mouth"]["right"]["y"].asFloat();
-
-		if (data["face"]["happy"].asBool()) {
-			elipses.push_back(ofVec4f(x, y, 15, 50));//bugbug for now just one circule, make better mouth later
-		}
-		else if (data["face"]["mouth"]["open"].asBool()) {
-			elipses.push_back(ofVec4f(x, y, abs(x - x2), 10));//bugbug for now just one circule, make better mouth later
-		}
-		else if (data["face"]["mouth"]["moved"].asBool()) {
-			elipses.push_back(ofVec4f(x, y, 5 + abs(x - x2), ofRandom(15)));//bugbug for now just one circule, make better mouth later
-		}
-		else {
-			faceitems.push_back(ofPoint(x, y, 15));
-			faceitems.push_back(ofPoint(x2, y2, 15));
-		}
+		face.setup(data);
 	}
 
 	void Kinect::setHand(const Json::Value &data, float x, float y) {
 		if (data["state"] == "open") {
-			circles.push_back(ofPoint(x, y, 25));
+			points.push_back(ofPoint(x, y, 25));
 		}
 		else if (data["state"] == "lasso") {
-			circles.push_back(ofPoint(x, y, 15));
+			points.push_back(ofPoint(x, y, 15));
 		}
 		else if (data["state"] == "closed") {
-			circles.push_back(ofPoint(x, y, 1));
+			points.push_back(ofPoint(x, y, 1));
 		}
 	}
 	void Kinect::setup(ofxJSON& data) {
-		circles.clear();
-		//faceitems.clear();
-		//elipses.clear();
-		//setFace(data["body"]);
-		for (Json::ArrayIndex j = 0; j < data["body"]["joint"].size(); ++j) {
-			float x = data["body"]["joint"][j]["depth"]["x"].asFloat(); // using depth coords which will not match the face
-			float y = data["body"]["joint"][j]["depth"]["y"].asFloat();
+		points.clear();
+		for (Json::ArrayIndex i = 0; i < data["body"].size(); ++i) {
+			face.setup(data["body"][i]["face"]);
+			Json::Value::Members m = data["body"][i].getMemberNames();
+			for (Json::ArrayIndex j = 0; j < data["body"][i]["joint"].size(); ++j) {
+				float x = data["body"][i]["joint"][j]["depth"]["x"].asFloat(); // using depth coords which will not match the face
+				float y = data["body"][i]["joint"][j]["depth"]["y"].asFloat();
 
-			if (data["body"]["joint"][j]["jointType"] == JointType::JointType_HandRight) {
-				setHand(data["body"]["joint"][j]["right"], x, y);
-			}
-			else if (data["body"]["joint"][j]["jointType"] == JointType::JointType_HandLeft) {
-				setHand(data["body"]["joint"][j]["left"], x, y);
-			}
-			else if (data["body"]["joint"][j]["jointType"] == JointType::JointType_Head) {
-				circles.push_back(ofPoint(x, y, 30));// bugbug add color etc
-			}
-			else {
-				// just the joint gets drawn, its name other than JointType_Head (hand above head)
-				// is not super key as we track face/hands separatly 
-				circles.push_back(ofPoint(x, y, 3));// bugbug add color etc
+				if (data["body"][i]["joint"][j]["jointType"] == JointType::JointType_HandRight) {
+					setHand(data["body"][i]["joint"][j]["right"], x, y);
+				}
+				else if (data["body"][i]["joint"][j]["jointType"] == JointType::JointType_HandLeft) {
+					setHand(data["body"][i]["joint"][j]["left"], x, y);
+				}
+				else if (data["body"][i]["joint"][j]["jointType"] == JointType::JointType_Head) {
+					points.push_back(ofPoint(x, y, 30));// bugbug add color etc
+				}
+				else {
+					// just the joint gets drawn, its name other than JointType_Head (hand above head)
+					// is not super key as we track face/hands separatly 
+					points.push_back(ofPoint(x, y, 3));// bugbug add color etc
+				}
 			}
 		}
 	}

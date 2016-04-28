@@ -21,17 +21,29 @@ namespace Software2552 {
 	void IRFromTCP(const UINT16 * bytes, ofImage& image);
 	PacketType mapPortToType(OurPorts ports);
 
+	class Face {
+	public:
+		void draw();
+		void setup(const Json::Value &data);
+	private:
+		vector <ofPoint> points;
+		vector <ofVec4f> elipses;
+		ofRectangle rectangle;
+		float pitch = 0;
+		float yaw = 0;
+		float roll = 0;
+
+	};
 	class Kinect {
 	public:
 		void draw();
 		void setup(ofxJSON& data);
+		Face face;
 	private:
 
 		void setHand(const Json::Value &data, float x, float y);
 		void setFace(const Json::Value &data);
-		vector <ofPoint> circles; // z is radius
-		vector <ofPoint> faceitems; 
-		vector <ofVec4f> elipses;
+		vector <ofPoint> points; // z is radius
 	};
 
 	void bodyFromTCP(const char * bytes, const int numBytes, Kinect&);
