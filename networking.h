@@ -44,6 +44,10 @@ namespace Software2552 {
 		char type; // byte only
 		char b[1]; // validates data was properly read
 	};
+	struct ReadTCPPacket {
+		char type; // byte only
+		string data;
+	};
 	struct TCPMessage {
 		int clientID;			// -1 for all connected
 		size_t numberOfBytesToSend;
@@ -94,9 +98,13 @@ namespace Software2552 {
 	};
 	class TCPClient : ofThread {
 	public:
-		void setup(const string& ip= "192.168.1.21", int _port=TCP, bool blocking=false);
-		char update(string& buffer);
+		void setup(const string& ip= "192.168.1.41", int _port=TCP, bool blocking=false);
+
+		shared_ptr<ReadTCPPacket> get();
 	private:
+		char update();
+		void threadedFunction();
+		deque<shared_ptr<ReadTCPPacket>> q;
 		ofxTCPClient tcpClient;
 	};
 }
