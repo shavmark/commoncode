@@ -19,7 +19,8 @@ namespace Software2552 {
 		BodyIndexID = 'x',
 		IrID = 'i',
 		BodyID = 'b',
-		JsonID = 'j'
+		JsonID = 'j',
+		UnknownID = 'u'
 	};
 
 	enum OurPorts : int {
@@ -94,7 +95,7 @@ namespace Software2552 {
 	};
 	class TCPClient : ofThread {
 	public:
-		void setup(const string& ip= "192.168.1.21", int _port=TCP, bool blocking=false);
+		void setup(const string& ip= "192.168.1.41", int _port=TCP, bool blocking=false);
 		char update(string& buffer);
 	private:
 		ofxTCPClient tcpClient;

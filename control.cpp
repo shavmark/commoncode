@@ -3,8 +3,8 @@
 #include "inc\Kinect.h" // needed for enums
 
 namespace Software2552 {
-	PacketType mapPortToType(OurPorts ports) {
-		switch (ports) {
+	PacketType mapPortToType(OurPorts port) {
+		switch (port) {
 		case TCP:
 			return TCPID;
 		case TCPKinectIR:
@@ -13,6 +13,9 @@ namespace Software2552 {
 			return BodyIndexID;
 		case TCPKinectBody:
 			return BodyID;
+		default:
+			ofLogError("mapPortToType") << "invalid port " << port;
+			return UnknownID;
 		}
 	}
 
@@ -93,9 +96,9 @@ namespace Software2552 {
 			}
 			else {
 				ofLogError("TCPReader::get()") << " wrong type " << type << "for port " << port;
-				return false;
 			}
 		}
+		return false;
 	}
 
 	void TCPReader::update() {
