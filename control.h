@@ -36,7 +36,7 @@ namespace Software2552 {
 		Face face;
 	private:
 
-		void setHand(const Json::Value &data, float x, float y);
+		void setHand(const Json::Value &data, float x, float y, float size);
 		void setFace(const Json::Value &data);
 		vector <ofPoint> points; // z is radius
 	};

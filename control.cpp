@@ -173,9 +173,10 @@ namespace Software2552 {
 		if (m.size() < 3) {
 			return; // not enough data to matter
 		}
-
-		float ratioX = (ofGetScreenWidth() / kinectWidthForColor);
-		float ratioY = (ofGetScreenHeight() / kinectHeightForColor);
+		float sw = ofGetScreenWidth();
+		float ratioX = (sw / kinectWidthForColor);
+		float sh = ofGetScreenHeight();
+		float ratioY = (sh / kinectHeightForColor);
 
 		// setup upper left
 		rectangle.set(data["boundingBox"]["left"].asFloat()*ratioX, data["boundingBox"]["top"].asFloat()*ratioY,
@@ -229,15 +230,20 @@ namespace Software2552 {
 		ofPushStyle();
 		//ofFill();
 		if (rectangle.width != 0) {
-			//ofPushMatrix();
+			ofPushMatrix();
 			//ofTranslate(rectangle.width / 2, rectangle.height / 2, 0);//move pivot to centre
-			//ofRotateZ(roll); // bugbug figure out rotation
-			//ofRotateY(yaw);
-			//ofRotateX(pitch);
+			//ofRotateZ(yaw); // bugbug figure out rotation
+			//ofTranslate(rectangle.width/2, rectangle.height/2);
+			//ofRotateX(roll);
+			//ofRotateY(pitch);
+			ofPushMatrix();
+			//ofTranslate(-rectangle.width / 2, -rectangle.height / 2);
 			ofDrawRectRounded(rectangle, 5);
+			ofPopMatrix();
+			//ofRotateX(pitch);
 			//ofPushMatrix();
 			//rectangle.draw(-rectangle.width / 2, -rectangle.height / 2);//move back by the centre offset
-			//ofPopMatrix();
+			ofPopMatrix();
 			//ofPopMatrix();
 		}
 		ofSetColor(ofColor::red); //bugbug clean changing up to fit in with rest of app, also each user gets a color
@@ -269,42 +275,42 @@ namespace Software2552 {
 		face.update(data);
 	}
 
-	void Kinect::setHand(const Json::Value &data, float x, float y) {
+	void Kinect::setHand(const Json::Value &data, float x, float y, float size) {
 		if (data["state"] == "open") {
-			points.push_back(ofPoint(x, y, 25));
+			points.push_back(ofPoint(x, y, size*2));
 		}
 		else if (data["state"] == "lasso") {
-			points.push_back(ofPoint(x, y, 15));
+			points.push_back(ofPoint(x, y, size));
 		}
 		else if (data["state"] == "closed") {
-			points.push_back(ofPoint(x, y, 1));
+			points.push_back(ofPoint(x, y, size/4));
 		}
 	}
 	void Kinect::update(ofxJSON& data) {
 		points.clear();
-		float ratioX = (ofGetScreenWidth() / kinectWidthForDepth);
-		float ratioY = (ofGetScreenHeight() / kinectHeightForDepth);
+		float ratioX = ((float)ofGetScreenWidth() / kinectWidthForDepth);
+		float ratioY = ((float)ofGetScreenHeight() / kinectHeightForDepth);
 
 		for (Json::ArrayIndex i = 0; i < data["body"].size(); ++i) {
 			face.update(data["body"][i]["face"]);
 			Json::Value::Members m = data["body"][i].getMemberNames();
 			for (Json::ArrayIndex j = 0; j < data["body"][i]["joint"].size(); ++j) {
-				float x = data["body"][i]["joint"][j]["depth"]["x"].asFloat()*ratioX; // using depth coords which will not match the face
-				float y = data["body"][i]["joint"][j]["depth"]["y"].asFloat()*ratioY;
+				float x = data["body"][i]["joint"][j]["depth"]["x"].asFloat() * ratioX; // using depth coords which will not match the face
+				float y = data["body"][i]["joint"][j]["depth"]["y"].asFloat() * ratioY;
 
 				if (data["body"][i]["joint"][j]["jointType"] == JointType::JointType_HandRight) {
-					setHand(data["body"][i]["joint"][j]["right"], x*ratioX, y*ratioY);
+					setHand(data["body"][i]["joint"][j]["right"], x, y, ratioX * 25);
 				}
 				else if (data["body"][i]["joint"][j]["jointType"] == JointType::JointType_HandLeft) {
-					setHand(data["body"][i]["joint"][j]["left"], x*ratioX, y*ratioY);
+					setHand(data["body"][i]["joint"][j]["left"], x, y, ratioX * 25);
 				}
 				else if (data["body"][i]["joint"][j]["jointType"] == JointType::JointType_Head) {
-					points.push_back(ofPoint(x*ratioX, y*ratioY, 30));// bugbug add color etc
+					points.push_back(ofPoint(x, y, ratioX * 25));// bugbug add color etc
 				}
 				else {
 					// just the joint gets drawn, its name other than JointType_Head (hand above head)
 					// is not super key as we track face/hands separatly 
-					points.push_back(ofPoint(x*ratioX, y*ratioY, 3));// bugbug add color etc
+					points.push_back(ofPoint(x, y, ratioX * 10));// bugbug add color etc
 				}
 			}
 		}
