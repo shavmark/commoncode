@@ -180,6 +180,7 @@ namespace Software2552 {
 			char* b = (char*)std::malloc(MAXSEND);
 			if (b) {
 				int messageSize = 0;
+
 				do {
 					// this api will write the size of the data not the size of the buffer we pass in (ouch)
 					// it buffers data beteen its markets and returns 0 until all data between 
@@ -197,6 +198,7 @@ namespace Software2552 {
 						yield();// give up cpu and try again
 					}
 				} while (1);
+
 				TCPPacket*p = (TCPPacket*)b;
 				if (p->b[0] == PacketFence) { // basic validation
 					if (uncompress(&p->b[1], messageSize-sizeof(TCPPacket), buffer)) {

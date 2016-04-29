@@ -8,13 +8,6 @@ namespace Software2552 {
 #define kinectWidthForDepth 512
 #define kinectHeightForDepth 424
 
-	// from https://github.com/ekino/ek-winjs-kinect/blob/master/platforms/windows/references/KinectImageProcessor/InfraredHelper.cpp
-#define InfraredOutputValueMinimum 0.01f 
-#define InfraredOutputValueMaximum 1.0f
-#define InfraredSourceValueMaximum static_cast<float>(USHRT_MAX)
-#define InfraredSceneStandardDeviations 4.0f
-#define InfraredSceneValueAverage 0.08f
-
 	bool compress(const char*buffer, size_t len, string&output);
 	bool uncompress(const char*buffer, size_t len, string&output);
 	void bodyIndexFromTCP(const char * bytes, const int numBytes, ofImage& image);
@@ -66,12 +59,12 @@ namespace Software2552 {
 	
 	typedef std::unordered_map<OurPorts, shared_ptr<TCPServer>> ServerMap;
 
-	class Router{
+	class Sender{
 	public:
 		void setup();
 		WriteOsc comms;
 		void send(const char * bytes, const size_t numBytes, OurPorts port, int clientID=-1);
-		void addTCP(OurPorts port = TCP, bool blocking = false);
+		void addTCPServer(OurPorts port = TCP, bool blocking = false);
 
 	private:
 		ServerMap servers;

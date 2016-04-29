@@ -33,15 +33,16 @@ namespace Software2552 {
 		}
 		return true;
 	}
-	void Router::setup() {
-		addTCP(TCP, true);
-		addTCP(TCPKinectIR, true);
-		addTCP(TCPKinectBodyIndex, true);
-		addTCP(TCPKinectBody, true);
-
+	void Sender::setup() {
+		addTCPServer(TCP, true);
+		addTCPServer(TCPKinectIR, true);
+		addTCPServer(TCPKinectBodyIndex, true);
+		addTCPServer(TCPKinectBody, true);
 		comms.setup();
+		//.41
+		//broad cost sign on
 	}
-	void Router::send(const char * bytes, const size_t numBytes, OurPorts port, int clientID) {
+	void Sender::send(const char * bytes, const size_t numBytes, OurPorts port, int clientID) {
 		if (numBytes > 0) {
 			ServerMap::iterator s = servers.find(port);
 			if (s != servers.end()) {
@@ -51,10 +52,13 @@ namespace Software2552 {
 	}
 
 	void TCPReader::setup(const string& ip) {
-		add("192.168.1.21", TCP, true);
-		add("192.168.1.21", TCPKinectIR, true); //bugbug get server ip via osc broad cast or such
-		add("192.168.1.21", TCPKinectBody, true);
-		add("192.168.1.21", TCPKinectBodyIndex, true);
+		add("192.168.1.41", TCP, true);//me .21 cheap box .41
+		add("192.168.1.41", TCPKinectIR, true); //bugbug get server ip via osc broad cast or such
+		add("192.168.1.41", TCPKinectBody, true);
+		add("192.168.1.41", TCPKinectBodyIndex, true);
+		if (!isThreadRunning()) {
+			startThread();
+		}
 	}
 	void TCPReader::threadedFunction() {
 		while (1) {
@@ -70,7 +74,7 @@ namespace Software2552 {
 			clients[port] = c;
 		}
 	}
-	void Router::addTCP(OurPorts port, bool blocking) {
+	void Sender::addTCPServer(OurPorts port, bool blocking) {
 		shared_ptr<TCPServer> s = std::make_shared<TCPServer>();
 		if (s) {
 			s->setup(port, blocking);
@@ -170,36 +174,37 @@ namespace Software2552 {
 			return; // not enough data to matter
 		}
 
-		float ratio = (ofGetScreenWidth() / kinectWidthForColor);
+		float ratioX = (ofGetScreenWidth() / kinectWidthForColor);
+		float ratioY = (ofGetScreenHeight() / kinectHeightForColor);
 
 		// setup upper left
-		rectangle.set(data["boundingBox"]["left"].asFloat()*ratio, data["boundingBox"]["top"].asFloat()*ratio,
-			data["boundingBox"]["right"].asFloat()*ratio - data["boundingBox"]["left"].asFloat()*ratio,
-			data["boundingBox"]["bottom"].asFloat()*ratio - data["boundingBox"]["top"].asFloat()*ratio);
+		rectangle.set(data["boundingBox"]["left"].asFloat()*ratioX, data["boundingBox"]["top"].asFloat()*ratioY,
+			data["boundingBox"]["right"].asFloat()*ratioX - data["boundingBox"]["left"].asFloat()*ratioX,
+			data["boundingBox"]["bottom"].asFloat()*ratioY - data["boundingBox"]["top"].asFloat()*ratioY);
 
 		pitch = data["rotation"]["pitch"].asFloat();
 		yaw = data["rotation"]["yaw"].asFloat();
 		roll = data["rotation"]["roll"].asFloat(); // bugbug rotate this in 3d
 
-		float x = data["eye"]["left"]["x"].asFloat() * ratio;
-		float y = data["eye"]["left"]["y"].asFloat()* ratio;
+		float x = data["eye"]["left"]["x"].asFloat() * ratioX;
+		float y = data["eye"]["left"]["y"].asFloat() * ratioY;
 
 		float radius = (data["eye"]["left"]["closed"].asBool()) ? 15 : 25;
 		elipses.push_back(ofVec4f(x, y, 10, 20));
 
-		x = data["eye"]["right"]["x"].asFloat()*ratio;
-		y = data["eye"]["right"]["y"].asFloat()*ratio;
+		x = data["eye"]["right"]["x"].asFloat()*ratioX;
+		y = data["eye"]["right"]["y"].asFloat()*ratioY;
 		radius = (data["face"]["eye"]["right"]["closed"].asBool()) ? 5 : 10;
 		elipses.push_back(ofVec4f(x, y, 10, 20));
 
-		x = data["nose"]["x"].asFloat()*ratio;
-		y = data["nose"]["y"].asFloat()*ratio;
+		x = data["nose"]["x"].asFloat()*ratioX;
+		y = data["nose"]["y"].asFloat()*ratioY;
 		elipses.push_back(ofVec4f(x, y, 10, 15));
 
-		x = data["mouth"]["left"]["x"].asFloat()*ratio;
-		y = data["mouth"]["left"]["y"].asFloat()*ratio;
-		float x2 = data["mouth"]["right"]["x"].asFloat()*ratio;
-		float y2 = data["mouth"]["right"]["y"].asFloat()*ratio;
+		x = data["mouth"]["left"]["x"].asFloat()*ratioX;
+		y = data["mouth"]["left"]["y"].asFloat()*ratioY;
+		float x2 = data["mouth"]["right"]["x"].asFloat()*ratioX;
+		float y2 = data["mouth"]["right"]["y"].asFloat()*ratioY;
 
 		if (data["happy"].asBool()) {
 			elipses.push_back(ofVec4f(x, y, 15, 50));//bugbug for now just one circule, make better mouth later
@@ -251,12 +256,12 @@ namespace Software2552 {
 	// need to add this to our model etc
 	void Kinect::draw() {
 		ofColor color = ofColor::orange;
-		float ratio = (ofGetScreenWidth() / kinectWidthForDepth);
+		
 		ofNoFill();
 		for (const auto&circle : points) {
 			ofSetColor(color); //bugbug clean changing up to fit in with rest of app
 			color.setHue(color.getHue() + 6.0f);
-			ofDrawCircle(circle.x*ratio, circle.y*ratio, circle.z*ratio);
+			ofDrawCircle(circle.x, circle.y, circle.z);
 		}
 
 	}
@@ -277,27 +282,29 @@ namespace Software2552 {
 	}
 	void Kinect::update(ofxJSON& data) {
 		points.clear();
+		float ratioX = (ofGetScreenWidth() / kinectWidthForDepth);
+		float ratioY = (ofGetScreenHeight() / kinectHeightForDepth);
 
 		for (Json::ArrayIndex i = 0; i < data["body"].size(); ++i) {
 			face.update(data["body"][i]["face"]);
 			Json::Value::Members m = data["body"][i].getMemberNames();
 			for (Json::ArrayIndex j = 0; j < data["body"][i]["joint"].size(); ++j) {
-				float x = data["body"][i]["joint"][j]["depth"]["x"].asFloat(); // using depth coords which will not match the face
-				float y = data["body"][i]["joint"][j]["depth"]["y"].asFloat();
+				float x = data["body"][i]["joint"][j]["depth"]["x"].asFloat()*ratioX; // using depth coords which will not match the face
+				float y = data["body"][i]["joint"][j]["depth"]["y"].asFloat()*ratioY;
 
 				if (data["body"][i]["joint"][j]["jointType"] == JointType::JointType_HandRight) {
-					setHand(data["body"][i]["joint"][j]["right"], x, y);
+					setHand(data["body"][i]["joint"][j]["right"], x*ratioX, y*ratioY);
 				}
 				else if (data["body"][i]["joint"][j]["jointType"] == JointType::JointType_HandLeft) {
-					setHand(data["body"][i]["joint"][j]["left"], x, y);
+					setHand(data["body"][i]["joint"][j]["left"], x*ratioX, y*ratioY);
 				}
 				else if (data["body"][i]["joint"][j]["jointType"] == JointType::JointType_Head) {
-					points.push_back(ofPoint(x, y, 30));// bugbug add color etc
+					points.push_back(ofPoint(x*ratioX, y*ratioY, 30));// bugbug add color etc
 				}
 				else {
 					// just the joint gets drawn, its name other than JointType_Head (hand above head)
 					// is not super key as we track face/hands separatly 
-					points.push_back(ofPoint(x, y, 3));// bugbug add color etc
+					points.push_back(ofPoint(x*ratioX, y*ratioY, 3));// bugbug add color etc
 				}
 			}
 		}
