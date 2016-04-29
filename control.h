@@ -12,7 +12,7 @@ namespace Software2552 {
 #define InfraredOutputValueMinimum 0.01f 
 #define InfraredOutputValueMaximum 1.0f
 #define InfraredSourceValueMaximum static_cast<float>(USHRT_MAX)
-#define InfraredSceneStandardDeviations 3.0f
+#define InfraredSceneStandardDeviations 4.0f
 #define InfraredSceneValueAverage 0.08f
 
 	bool compress(const char*buffer, size_t len, string&output);

@@ -150,13 +150,7 @@ namespace Software2552 {
 		for (float y = 0; y < kinectHeightForIR; y++) {
 			for (float x = 0; x < kinectWidthForIR; x++) {
 				unsigned int index = y * kinectWidthForIR + x;
-				float intensityRatio = static_cast<float>(bytes[index]) / InfraredSourceValueMaximum;
-				intensityRatio /= InfraredSceneValueAverage * InfraredSceneStandardDeviations;
-				intensityRatio = ofClamp(intensityRatio, InfraredOutputValueMinimum, InfraredOutputValueMaximum);
-				byte r = static_cast<byte>(intensityRatio * 255.0f);
-				byte g = static_cast<byte>(intensityRatio * 1.0f);
-				byte b = static_cast<byte>(intensityRatio * 255.0f);
-				image.setColor(x, y, ofColor(r, g, b));
+				image.setColor(x, y, ofColor().fromHsb(255, 255,bytes[index]));
 			}
 		}
 		image.update();
