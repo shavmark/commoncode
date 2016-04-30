@@ -174,7 +174,22 @@ namespace Software2552 {
 			}
 		}
 	}
-	char TCPClient::update(string& buffer) {
+	void TCPClient::threadedFunction() {
+		while (1) {
+			update();
+			yield();
+		}
+
+	}
+	shared_ptr<ReadTCPPacket> TCPClient::get() {
+		shared_ptr<ReadTCPPacket>p = nullptr;
+		if (q.size() > 0) {
+			p = q.back();// last in first out
+			q.pop_back();
+		}
+		return p;
+	}
+	char TCPClient::update() {
 		char type = 0;
 		if (tcpClient.isConnected()) {
 			lock();// need to read one at a time to keep input organized
@@ -195,22 +210,24 @@ namespace Software2552 {
 						ofLogWarning("msg") << ofToString(messageSize);
 						break;
 					}
-					else {
-						yield();// give up cpu and try again
-					}
 				} while (1);
 
 				TCPPacket*p = (TCPPacket*)b;
 				if (p->b[0] == PacketFence) { // basic validation
-					if (uncompress(&p->b[1], messageSize-sizeof(TCPPacket), buffer)) {
-						type = ((TCPPacket*)b)->type; // data should change a litte
-					}
-					else {
-						ofLogError("data ignored");
+					shared_ptr<ReadTCPPacket> returnedData = std::make_shared<ReadTCPPacket>();
+					if (returnedData) {
+						if (uncompress(&p->b[1], messageSize - sizeof(TCPPacket), returnedData->data)) {
+							type = p->type; // data should change a litte
+							returnedData->type = type;
+							q.push_back(returnedData);
+						}
+						else {
+							ofLogError("data ignored");
+						}
 					}
 				}
 
-				free(b);
+				free(b); // only delete if data not returned
 			}
 			unlock();
 			return 0;
@@ -222,6 +239,10 @@ namespace Software2552 {
 		return type;
 	}
 	void TCPClient::setup(const string& ip, int port, bool blocking) {//192.168.1.21 or 127.0.0.1
+		if (!isThreadRunning()) {
+			startThread();
+		}
+
 		if (!tcpClient.setup(ip, port, blocking)) {
 			ofSleepMillis(500); // wait before a try again if failed
 			tcpClient.setup(ip, port, blocking); // caller must try again beyond this

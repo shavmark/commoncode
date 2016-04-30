@@ -47,9 +47,9 @@ namespace Software2552 {
 
 	class TCPReader : public ofThread {
 	public:
-		void setup(const string& ip = "192.168.1.21");
-		void add(const string& ip = "192.168.1.21", OurPorts port = TCP, bool blocking = false);
-		bool get(OurPorts port, string& buffer);
+		void setup(const string& ip = "192.168.1.41");
+		void add(const string& ip = "192.168.1.41", OurPorts port = TCP, bool blocking = false);
+		bool get(OurPorts port, shared_ptr<ReadTCPPacket> packet);
 
 	private:
 		void threadedFunction();

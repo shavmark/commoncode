@@ -85,17 +85,19 @@ namespace Software2552 {
 		}
 	}
 
-	// get data
-	bool TCPReader::get(OurPorts port, string& buffer) {
+	// get data, if any
+	bool TCPReader::get(OurPorts port, shared_ptr<ReadTCPPacket> packet) {
 
 		ClientMap::iterator c = clients.find(port);
 		if (c != clients.end()) {
-			char type = c->second->update(buffer);
-			if (type == mapPortToType(port)) {
-				return true;
-			}
-			else {
-				ofLogError("TCPReader::get()") << " wrong type " << type << "for port " << port;
+			packet = c->second->get();
+			if (packet) {
+				if (packet->type == mapPortToType(port)) {
+					return true;
+				}
+				else {
+					ofLogError("TCPReader::get()") << " wrong type " << packet->type << "for port " << port;
+				}
 			}
 		}
 		return false;
@@ -103,23 +105,23 @@ namespace Software2552 {
 
 	void TCPReader::update() {
 		ofImage image;//bugbug convert to a an item for our drawing queue
-		string buffer;
+		shared_ptr<ReadTCPPacket> packet;
 		Kinect kinect;
 
 		// this code is designed to read all set connections, validate data and process it
-		if (get(TCPKinectBodyIndex, buffer)) {
-			bodyIndexFromTCP(buffer.c_str(), buffer.size(), image);
+		if (get(TCPKinectBodyIndex, packet)) {
+			bodyIndexFromTCP(packet->data.c_str(), packet->data.size(), image);
 		}
 
-		if (get(TCPKinectBody, buffer)) {
-			bodyFromTCP(buffer.c_str(), buffer.size(), kinect);
+		if (get(TCPKinectBody, packet)) {
+			bodyFromTCP(packet->data.c_str(), packet->data.size(), kinect);
 		}
 
-		if (get(TCPKinectIR, buffer)) {
-			IRFromTCP((const UINT16 *)buffer.c_str(), image);
+		if (get(TCPKinectIR, packet)) {
+			IRFromTCP((const UINT16 *)packet->data.c_str(), image);
 		}
 
-		if (get(TCP, buffer)) {
+		if (get(TCP, packet)) {
 			;// not defined yet
 		}
 
