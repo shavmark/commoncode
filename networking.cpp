@@ -204,25 +204,27 @@ namespace Software2552 {
 					messageSize = tcpClient.receiveRawMsg(b, MAXSEND);
 					// only occurs due to bug or hack as we never send more than MAXSEND ourself, at this point we need to crash
 					if (messageSize > MAXSEND) {
-						ofExit(-2); // enables DOS, the real fix is for to not over flow receiveRawMsg
+						ofExit(-2); // enables DOS, the real fix is for to not over flow in receiveRawMsg bugbug
 					}
 					if (messageSize > 0) {
-						ofLogWarning("msg") << ofToString(messageSize);
-						break;
+						ofLogNotice("msg") << "got packet of size " << ofToString(messageSize);
 					}
+					break;
 				} while (1);
 
-				TCPPacket*p = (TCPPacket*)b;
-				if (p->b[0] == PacketFence) { // basic validation
-					shared_ptr<ReadTCPPacket> returnedData = std::make_shared<ReadTCPPacket>();
-					if (returnedData) {
-						if (uncompress(&p->b[1], messageSize - sizeof(TCPPacket), returnedData->data)) {
-							type = p->type; // data should change a litte
-							returnedData->type = type;
-							q.push_back(returnedData);
-						}
-						else {
-							ofLogError("data ignored");
+				if (messageSize > 0) {
+					TCPPacket*p = (TCPPacket*)b;
+					if (p->b[0] == PacketFence) { // basic validation
+						shared_ptr<ReadTCPPacket> returnedData = std::make_shared<ReadTCPPacket>();
+						if (returnedData) {
+							if (uncompress(&p->b[1], messageSize - sizeof(TCPPacket), returnedData->data)) {
+								type = p->type; // data should change a litte
+								returnedData->type = type;
+								q.push_back(returnedData);
+							}
+							else {
+								ofLogError("data ignored");
+							}
 						}
 					}
 				}
@@ -239,13 +241,14 @@ namespace Software2552 {
 		return type;
 	}
 	void TCPClient::setup(const string& ip, int port, bool blocking) {//192.168.1.21 or 127.0.0.1
-		if (!isThreadRunning()) {
-			startThread();
-		}
-
-		if (!tcpClient.setup(ip, port, blocking)) {
-			ofSleepMillis(500); // wait before a try again if failed
-			tcpClient.setup(ip, port, blocking); // caller must try again beyond this
+		if (!tcpClient.isConnected()) {
+			if (!tcpClient.setup(ip, port, blocking)) {
+				ofSleepMillis(500); // wait before a try again if failed
+				tcpClient.setup(ip, port, blocking); // caller must try again beyond this
+			}
+			if (!isThreadRunning() && tcpClient.isConnected()) {
+				startThread(); // start thread once connection is made
+			}
 		}
 	}
 }
