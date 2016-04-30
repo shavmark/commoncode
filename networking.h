@@ -105,6 +105,6 @@ namespace Software2552 {
 		char update();
 		void threadedFunction();
 		deque<shared_ptr<ReadTCPPacket>> q;
-		ofxTCPClient tcpClient;
+		ofxTCPClient tcpClient; 
 	};
 }
