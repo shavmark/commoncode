@@ -47,7 +47,7 @@ namespace Software2552 {
 	}
 	void Sender::send(const char * bytes, const size_t numBytes, OurPorts port, int clientID) {
 		if (numBytes > 0) {
-			ServerMap::iterator s = servers.find(port);
+			ServerMap::const_iterator s = servers.find(port);
 			if (s != servers.end()) {
 				s->second->update(bytes, numBytes, mapPortToType(port), clientID);
 			}
@@ -88,7 +88,7 @@ namespace Software2552 {
 	// get data, if any
 	bool TCPReader::get(OurPorts port, shared_ptr<ReadTCPPacket> packet) {
 
-		ClientMap::iterator c = clients.find(port);
+		ClientMap::const_iterator c = clients.find(port);
 		if (c != clients.end()) {
 			packet = c->second->get();
 			if (packet) {
