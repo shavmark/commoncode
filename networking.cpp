@@ -126,6 +126,7 @@ namespace Software2552 {
 			char *bytes = new char[sizeof(TCPMessage) + buffer.size()];
 			if (bytes) {
 				TCPMessage *message = (TCPMessage *)bytes;
+				message->clientID = 1;
 				message->packet.type = type; // passed as a double check
 				message->packet.b[0] = PacketFence; // help check for lost or out of sync data
 				message->numberOfBytesToSend = sizeof(TCPPacket) + buffer.size();
