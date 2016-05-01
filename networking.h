@@ -91,10 +91,10 @@ namespace Software2552 {
 		void setup(int port= TCP, bool blocking = false);
 		int port() { return server.getPort(); }
 		void update(const char * rawBytes, const size_t numBytes, PacketType type, int clientID = -1);
+		ofxTCPServer server;
 	private:
 		void threadedFunction();
 		void sendbinary(TCPMessage *m);
-		ofxTCPServer server;
 		deque<TCPMessage*> q;
 	};
 	class TCPClient : ofThread {

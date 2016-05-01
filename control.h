@@ -69,7 +69,7 @@ namespace Software2552 {
 		bool kinectIREnabled();
 		bool KinectBodyIndexEndabled();
 		bool KinectBodyEnabled();
-
+		bool enabled(OurPorts port);
 	private:
 		ServerMap servers;
 	};

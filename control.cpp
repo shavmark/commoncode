@@ -58,17 +58,21 @@ namespace Software2552 {
 		ServerMap::const_iterator s = servers.find(TCP);
 		return s != servers.end();
 	}
+	bool Sender::enabled(OurPorts port) {
+		ServerMap::const_iterator s = servers.find(port);
+		if (s != servers.end() && s->second.get()) {
+			return s->second.get()->server.getNumClients() > 0;
+		}
+		return false;
+	}
 	bool Sender::kinectIREnabled() {
-		ServerMap::const_iterator s = servers.find(TCPKinectIR);
-		return s != servers.end();
+		return enabled(TCPKinectIR);
 	}
 	bool Sender::KinectBodyIndexEndabled() {
-		ServerMap::const_iterator s = servers.find(TCPKinectBodyIndex);
-		return s != servers.end();
+		return enabled(TCPKinectBodyIndex);
 	}
 	bool Sender::KinectBodyEnabled() {
-		ServerMap::const_iterator s = servers.find(TCPKinectBody);
-		return s != servers.end();
+		return enabled(TCPKinectBody);
 	}
 
 	void TCPReader::setup(const string& ip) {
@@ -90,7 +94,7 @@ namespace Software2552 {
 	void TCPReader::add(const string& ip, OurPorts port, bool blocking) {
 		shared_ptr<TCPClient> c = std::make_shared<TCPClient>();
 		if (c) {
-			c->setup(ip, TCP, blocking);
+			c->setup(ip, port, blocking);
 			clients[port] = c;
 		}
 	}
