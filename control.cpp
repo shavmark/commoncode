@@ -54,6 +54,23 @@ namespace Software2552 {
 		}
 	}
 
+	bool Sender::tcpEnabled() {
+		ServerMap::const_iterator s = servers.find(TCP);
+		return s != servers.end();
+	}
+	bool Sender::kinectIREnabled() {
+		ServerMap::const_iterator s = servers.find(TCPKinectIR);
+		return s != servers.end();
+	}
+	bool Sender::KinectBodyIndexEndabled() {
+		ServerMap::const_iterator s = servers.find(TCPKinectBodyIndex);
+		return s != servers.end();
+	}
+	bool Sender::KinectBodyEnabled() {
+		ServerMap::const_iterator s = servers.find(TCPKinectBody);
+		return s != servers.end();
+	}
+
 	void TCPReader::setup(const string& ip) {
 		add("192.168.1.41", TCP, true);//me .21 cheap box .41
 		add("192.168.1.41", TCPKinectIR, true); //bugbug get server ip via osc broad cast or such

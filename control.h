@@ -65,6 +65,10 @@ namespace Software2552 {
 		WriteOsc comms;
 		void send(const char * bytes, const size_t numBytes, OurPorts port, int clientID=-1);
 		void addTCPServer(OurPorts port = TCP, bool blocking = false);
+		bool tcpEnabled();
+		bool kinectIREnabled();
+		bool KinectBodyIndexEndabled();
+		bool KinectBodyEnabled();
 
 	private:
 		ServerMap servers;
