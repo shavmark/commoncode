@@ -10,7 +10,7 @@ namespace Software2552 {
 
 	bool compress(const char*buffer, size_t len, string&output);
 	bool uncompress(const char*buffer, size_t len, string&output);
-	void bodyIndexFromTCP(const char * bytes, const int numBytes, ofImage& image);
+	void bodyIndexFromTCP(const char * buffer, const size_t len, ofImage& image);
 	void IRFromTCP(const UINT16 * bytes, ofImage& image);
 	PacketType mapPortToType(OurPorts ports);
 
@@ -41,7 +41,7 @@ namespace Software2552 {
 		vector <ofPoint> points; // z is radius
 	};
 
-	void bodyFromTCP(const char * bytes, const int numBytes, Kinect&);
+	void bodyFromTCP(const char * bytes, const size_t numBytes, Kinect&);
 
 	typedef std::unordered_map<OurPorts, shared_ptr<TCPClient>> ClientMap;
 

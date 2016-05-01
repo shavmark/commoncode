@@ -121,7 +121,7 @@ namespace Software2552 {
 	}
 	// input data is  deleted by this object at the right time (at least that is the plan)
 	void TCPServer::update(const char * bytes, const size_t numBytes, PacketType type, int clientID) {
-		string buffer = "hello";
+		string buffer;
 		if (compress(bytes, numBytes, buffer)) { // copy and compress data so caller can free passed data 
 			char *bytes = new char[sizeof(TCPMessage) + buffer.size()];
 			if (bytes) {
@@ -132,9 +132,8 @@ namespace Software2552 {
 				message->numberOfBytesToSend = sizeof(TCPPacket) + buffer.size();
 				memcpy_s(&message->packet.b[1], buffer.size(), buffer.c_str(), buffer.size());
 				lock();
-				if (q.size() > 500) {
-					// see if we can let send sender catch up
-					ofSleepMillis(100); // let some queue drain bugbug do we need to put this writer in a thread?
+				if (q.size() > maxItems) {
+					q.pop_back(); // remove oldest
 				}
 				q.push_front(message); //bugbub do we want to add a priority? 
 				unlock();

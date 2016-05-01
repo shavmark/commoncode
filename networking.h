@@ -89,10 +89,12 @@ namespace Software2552 {
 	class TCPServer : public ofThread {
 	public:
 		void setup(int port= TCP, bool blocking = false);
-		int port() { return server.getPort(); }
+		int  port() { return server.getPort(); }
+		int  clientCount() { return server.getNumClients(); }
 		void update(const char * rawBytes, const size_t numBytes, PacketType type, int clientID = -1);
-		ofxTCPServer server;
+		int maxItems = 10; // max size of q
 	private:
+		ofxTCPServer server;
 		void threadedFunction();
 		void sendbinary(TCPMessage *m);
 		deque<TCPMessage*> q;

@@ -61,7 +61,7 @@ namespace Software2552 {
 	bool Sender::enabled(OurPorts port) {
 		ServerMap::const_iterator s = servers.find(port);
 		if (s != servers.end() && s->second.get()) {
-			return s->second.get()->server.getNumClients() > 0;
+			return s->second.get()->clientCount()  > 0;
 		}
 		return false;
 	}
@@ -148,7 +148,7 @@ namespace Software2552 {
 
 	}
 	// call on every update (this is done on the client side, not the server side)
-	void bodyIndexFromTCP(const char * bytes, const int numBytes, ofImage& image) {
+	void bodyIndexFromTCP(const char * bytes, const size_t numBytes, ofImage& image) {
 		if (numBytes == 0) {
 			return;
 		}
@@ -341,7 +341,7 @@ namespace Software2552 {
 			}
 		}
 	}
-	void bodyFromTCP(const char * bytes, const int numBytes, Kinect& body) {
+	void bodyFromTCP(const char * bytes, const size_t numBytes, Kinect& body) {
 		ofxJSON data;
 		if (!data.parse(bytes)) {
 			ofLogError("bodyFromTCP") << "invalid json " << bytes;// lets hope its null terminated
