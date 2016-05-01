@@ -8,12 +8,15 @@
 #include "ofApp.h"
 #include "ofxOsc.h"
 #include "ofxNetwork.h"
+#include "snappy.h"
 
 
 // phase II go to something like IoTivity or AllJoyn, let the dust settle.  
 
 // notes: remote files can use ofImage.loadImage("http://some.com/url.png")
 namespace Software2552 {
+	static const string defaultServerIP = "192.168.1.25";
+
 	enum PacketType : char {
 		TCPID = 't',
 		BodyIndexID = 'x',
@@ -30,8 +33,9 @@ namespace Software2552 {
 		TCPKinectBodyIndex,
 		TCPKinectBody
 	};
+	bool compress(const char*buffer, size_t len, string&output);
+	bool uncompress(const char*buffer, size_t len, string&output);
 
-	
 	class OSCMessage {
 	public:
 		static shared_ptr<ofxJSON> toJson(shared_ptr<ofxOscMessage>);
@@ -101,7 +105,7 @@ namespace Software2552 {
 	};
 	class TCPClient : ofThread {
 	public:
-		void setup(const string& ip= "192.168.1.25", int _port=TCP, bool blocking=false);
+		void setup(const string& ip= defaultServerIP, int _port=TCP, bool blocking=false);
 
 		shared_ptr<ReadTCPPacket> get();
 	private:
@@ -110,4 +114,34 @@ namespace Software2552 {
 		deque<shared_ptr<ReadTCPPacket>> q;
 		ofxTCPClient tcpClient; 
 	};
+
+	typedef std::unordered_map<OurPorts, shared_ptr<TCPClient>> ClientMap;
+
+	class TCPReader : public ofThread {
+	public:
+		void setup(const string& ip = defaultServerIP);
+		void add(const string& ip = defaultServerIP, OurPorts port = TCP, bool blocking = false);
+		bool get(OurPorts port, shared_ptr<ReadTCPPacket>& packet);
+
+	private:
+		void threadedFunction();
+		virtual void update()=0; // let the thread do this
+		ClientMap clients;
+	};
+
+	typedef std::unordered_map<OurPorts, shared_ptr<TCPServer>> ServerMap;
+
+	// send in tpc or osc
+	class Server {
+	public:
+		void setup();
+		void send(const char * bytes, const size_t numBytes, OurPorts port, int clientID = -1);
+		void addTCPServer(OurPorts port = TCP, bool blocking = false);
+		bool tcpEnabled();
+		bool enabled(OurPorts port);
+	private:
+		WriteOsc comms;
+		ServerMap servers;
+	};
+
 }

@@ -3,6 +3,24 @@
 namespace Software2552 {
 #define MAXSEND (1024*1024)
 
+	// input buffer returned as reference
+	bool compress(const char*buffer, size_t len, string&output) {
+		size_t size = snappy::Compress((const char*)buffer, len, &output);
+		if (size <= 0) {
+			ofLogError("compress") << "fails " << size;
+		}
+		return size > 0;
+	}
+
+	// input buffer returned as reference
+	bool uncompress(const char*buffer, size_t len, string&output) {
+		if (!snappy::Uncompress(buffer, len, &output)) {
+			ofLogError("uncompress") << "fails";
+			return false;
+		}
+		return true;
+	}
+
 	shared_ptr<ofxJSON> OSCMessage::toJson(shared_ptr<ofxOscMessage> m) {
 		if (m) {
 			// bugbug data comes from one of http/s, string or local file but for now just a string
@@ -251,4 +269,74 @@ namespace Software2552 {
 			}
 		}
 	}
+	void Server::setup() {
+		comms.setup();
+	}
+	void Server::addTCPServer(OurPorts port, bool blocking) {
+		shared_ptr<TCPServer> s = std::make_shared<TCPServer>();
+		if (s) {
+			s->setup(port, blocking);
+			servers[port] = s; // will create a new queue if needed
+		}
+	}
+
+	void Server::send(const char * bytes, const size_t numBytes, OurPorts port, int clientID) {
+		if (numBytes > 0) {
+			ServerMap::const_iterator s = servers.find(port);
+			if (s != servers.end()) {
+				s->second->update(bytes, numBytes, mapPortToType(port), clientID);
+			}
+		}
+	}
+
+	bool Server::tcpEnabled() {
+		ServerMap::const_iterator s = servers.find(TCP);
+		return s != servers.end();
+	}
+	bool Server::enabled(OurPorts port) {
+		ServerMap::const_iterator s = servers.find(port);
+		if (s != servers.end() && s->second.get()) {
+			return s->second.get()->clientCount()  > 0;
+		}
+		return false;
+	}
+	void TCPReader::setup(const string& ip) {
+		//add("192.168.1.25", TCP, true);
+		if (!isThreadRunning()) {
+			startThread();
+		}
+	}
+	void TCPReader::threadedFunction() {
+		while (1) {
+			update();
+			yield();
+		}
+	}
+
+	void TCPReader::add(const string& ip, OurPorts port, bool blocking) {
+		shared_ptr<TCPClient> c = std::make_shared<TCPClient>();
+		if (c) {
+			c->setup(ip, port, blocking);
+			clients[port] = c;
+		}
+	}
+
+	// get data, if any
+	bool TCPReader::get(OurPorts port, shared_ptr<ReadTCPPacket>& packet) {
+
+		ClientMap::const_iterator c = clients.find(port);
+		if (c != clients.end()) {
+			packet = c->second->get();
+			if (packet) {
+				if (packet->type == mapPortToType(port)) {
+					return true;
+				}
+				else {
+					ofLogError("TCPReader::get()") << " wrong type " << packet->type << "for port " << port;
+				}
+			}
+		}
+		return false;
+	}
+
 }
