@@ -101,7 +101,7 @@ namespace Software2552 {
 	};
 	class TCPClient : ofThread {
 	public:
-		void setup(const string& ip= "192.168.1.41", int _port=TCP, bool blocking=false);
+		void setup(const string& ip= "192.168.1.25", int _port=TCP, bool blocking=false);
 
 		shared_ptr<ReadTCPPacket> get();
 	private:

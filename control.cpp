@@ -42,7 +42,7 @@ namespace Software2552 {
 		addTCPServer(TCPKinectBodyIndex, true);
 		addTCPServer(TCPKinectBody, true);
 		comms.setup();
-		//.41
+		//.25
 		//broad cost sign on
 	}
 	void Sender::send(const char * bytes, const size_t numBytes, OurPorts port, int clientID) {
@@ -107,7 +107,7 @@ namespace Software2552 {
 	}
 
 	// get data, if any
-	bool TCPReader::get(OurPorts port, shared_ptr<ReadTCPPacket> packet) {
+	bool TCPReader::get(OurPorts port, shared_ptr<ReadTCPPacket>& packet) {
 
 		ClientMap::const_iterator c = clients.find(port);
 		if (c != clients.end()) {
