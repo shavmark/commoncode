@@ -67,7 +67,7 @@ namespace Software2552 {
 		void setup(const string &hostname = "192.168.1.255", int port = OSC);
 
 		// add a message to be sent
-		void update(ofxJSON &data, const string&address);
+		void send(ofxJSON &data, const string&address);
 
 	private:
 		void threadedFunction();
@@ -135,10 +135,11 @@ namespace Software2552 {
 	class Server {
 	public:
 		void setup();
-		void send(const char * bytes, const size_t numBytes, OurPorts port, int clientID = -1);
+		void sendTCP(const char * bytes, const size_t numBytes, OurPorts port, int clientID = -1);
 		void addTCPServer(OurPorts port = TCP, bool blocking = false);
 		bool tcpEnabled();
 		bool enabled(OurPorts port);
+		void sendOsc(ofxJSON &data, const string&address) { comms.send(data, address); }
 	private:
 		WriteOsc comms;
 		ServerMap servers;

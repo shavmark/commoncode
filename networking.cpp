@@ -85,7 +85,7 @@ namespace Software2552 {
 		return false;
 	}
 	// add a message to be sent
-	void WriteOsc::update(ofxJSON &data, const string&address) {
+	void WriteOsc::send(ofxJSON &data, const string&address) {
 		if (data.size() > 0) {
 			shared_ptr<ofxOscMessage> p = OSCMessage::fromJson(data, address);
 			if (p) {
@@ -280,7 +280,7 @@ namespace Software2552 {
 		}
 	}
 
-	void Server::send(const char * bytes, const size_t numBytes, OurPorts port, int clientID) {
+	void Server::sendTCP(const char * bytes, const size_t numBytes, OurPorts port, int clientID) {
 		if (numBytes > 0) {
 			ServerMap::const_iterator s = servers.find(port);
 			if (s != servers.end()) {
