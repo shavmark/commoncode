@@ -42,7 +42,7 @@ namespace Software2552 {
 		addTCPServer(TCPKinectBodyIndex, true);
 		addTCPServer(TCPKinectBody, true);
 		comms.setup();
-		//.41
+		//.25
 		//broad cost sign on
 	}
 	void Sender::send(const char * bytes, const size_t numBytes, OurPorts port, int clientID) {
@@ -76,10 +76,10 @@ namespace Software2552 {
 	}
 
 	void TCPReader::setup(const string& ip) {
-		add("192.168.1.41", TCP, true);//me .21 cheap box .41
-		add("192.168.1.41", TCPKinectIR, true); //bugbug get server ip via osc broad cast or such
-		add("192.168.1.41", TCPKinectBody, true);
-		add("192.168.1.41", TCPKinectBodyIndex, true);
+		add("192.168.1.25", TCP, true);//me .21 cheap box .41
+		add("192.168.1.25", TCPKinectIR, true); //bugbug get server ip via osc broad cast or such
+		add("192.168.1.25", TCPKinectBody, true);
+		add("192.168.1.25", TCPKinectBodyIndex, true);
 		if (!isThreadRunning()) {
 			startThread();
 		}
@@ -107,7 +107,7 @@ namespace Software2552 {
 	}
 
 	// get data, if any
-	bool TCPReader::get(OurPorts port, shared_ptr<ReadTCPPacket> packet) {
+	bool TCPReader::get(OurPorts port, shared_ptr<ReadTCPPacket>& packet) {
 
 		ClientMap::const_iterator c = clients.find(port);
 		if (c != clients.end()) {
