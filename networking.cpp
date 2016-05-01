@@ -165,7 +165,7 @@ namespace Software2552 {
 				ofLogError("TCPServer::sendbinary") << "block too large " << ofToString(m->numberOfBytesToSend) + " max " << ofToString(MAXSEND);
 				return;
 			}
-			if (server.isConnected()) {
+			if (server.getNumClients() > 0) {
 				if (m->clientID > 0) {
 					server.sendRawMsg(m->clientID, (const char*)&m->packet, m->numberOfBytesToSend);
 				}
